@@ -98,6 +98,11 @@ This project is ready for one-click deployment on Railway.
     -   (This is required to enable the custom CORS fixes).
 5.  **Public URL**: Go to Settings -> Networking -> Generate Domain.
 6.  **Connect**: Your MCP URL will be `https://<your-domain>.up.railway.app/mcp`.
+7.  **Persistence (Optional but Recommended)**:
+    -   Create a **Volume** in Railway.
+    -   Mount it to `/app/generated_docs`.
+    -   Add an Environment Variable: `RAILWAY_VOLUME_MOUNT_PATH=/app/generated_docs`.
+    -   This ensures your generated DOCX files persist across restarts.
 
 ## Troubleshooting
 
