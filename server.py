@@ -368,9 +368,11 @@ def generate_compliance_doc(compliance_data_json: str) -> list[types.TextContent
         base_url = ""
         
         # Priority 1: Environment Variable (Railway/Cloud)
-        railway_domain = os.environ.get("RAILWAY_PUBLIC_DOMAIN")
+        railway_domain = os.environ.get("RAILWAY_PUBLIC_DOMAIN") or os.environ.get("RAILWAY_STATIC_URL")
         if railway_domain:
-            base_url = f"https://{railway_domain}".rstrip("/")
+            if not railway_domain.startswith("http"):
+                 railway_domain = f"https://{railway_domain}"
+            base_url = railway_domain.rstrip("/")
         
         # Priority 2: Config File
         if not base_url:
