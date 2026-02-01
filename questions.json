@@ -1,0 +1,402 @@
+[
+    {
+        "id": "date_last_updated",
+        "question": "What is the date this document was last updated?",
+        "description": "Today's date."
+    },
+    {
+        "id": "doc_version_number",
+        "question": "What is the version number of this document?",
+        "description": "assume this is version 1.0 for now."
+    },
+    {
+        "id": "legal_name",
+        "question": "What is the legal name for the model provider?",
+        "description": "The legal name of the model provider."
+    },
+    {
+        "id": "model_name",
+        "question": "What is the official model name?",
+        "description": "The unique identifier for the model (e.g. Llama 3.1-405B), including the identifier for the collection of models where applicable, and a list of the names of the publicly available versions of the concerned model covered by the Model Documentation."
+    },
+    {
+        "id": "model_authenticity",
+        "question": "What is model authenticity?",
+        "description": "Evidence that establishes the provenance and authenticity of the model (e.g. a secure hash if binaries are distributed, or the URL endpoint in the case of a service), where available."
+    },
+    {
+        "id": "release_date",
+        "question": "What is the release date of this document?",
+        "description": "Date when the model was first released through any distribution channel."
+    },
+    {
+        "id": "union_release_date",
+        "question": "What is the union release date of this document?",
+        "description": "Date when the model was placed on European Union market."
+    },
+    {
+        "id": "model_dependencies",
+        "question": "What are the model dependencies?",
+        "description": "If the model is the result of a modification or fine-tuning of one or more general-purpose AI models previously placed on the market, list the model name(s) (and relevant version(s) if more than one version has been placed on the market) of those model(s). Otherwise write 'N/A'."
+    },
+    {
+        "id": "model_architecture",
+        "question": "What is the model architecture?",
+        "description": "A general description of the model architecture, e.g. a transformer architecture. [Recommended 20 words]"
+    },
+    {
+        "id": "design_specs",
+        "question": "What are the design specifications of the model?",
+        "description": "A general description of the key design specifications of the model, including rationale and assumptions made, to provide basic insight into how the model was designed. Recommended 100 words. If any other please specify:"
+    },
+    {
+        "id": "input_modalities_text_check",
+        "question": "Did you use text as an input modality?",
+        "description": "yes or no"
+    },
+    {
+        "id": "input_modalities_text_max",
+        "question": "What is the maximum input size for the text input modality",
+        "description": "return the max input size or 'N/A' if text is not an input modality"
+    },
+    {
+        "id": "input_modalities_images_check",
+        "question": "Did you use images as an input modality?",
+        "description": "yes or no"
+    },
+    {
+        "id": "input_modalities_images_max",
+        "question": "What is the maximum input size for the images input modality",
+        "description": "return the max input size or 'N/A' if images are not an input modality"
+    },
+    {
+        "id": "input_modalities_audio_check",
+        "question": "Did you use audio as an input modality?",
+        "description": "yes or no"
+    },
+    {
+        "id": "input_modalities_audio_max",
+        "question": "What is the maximum input size for the audio input modality",
+        "description": "return the max input size or 'N/A' if audio is not an input modality"
+    },
+    {
+        "id": "input_modalities_video_check",
+        "question": "Did you use video as an input modality?",
+        "description": "yes or no"
+    },
+    {
+        "id": "input_modalities_video_max",
+        "question": "What is the maximum input size for the video input modality",
+        "description": "return the max input size or 'N/A' if video is not an input modality"
+    },
+    {
+        "id": "input_modalities_other_check",
+        "question": "Did you use any other input modalities besides text, images, audio, video?",
+        "description": "if yes, please specify, otherwise write 'N/A'"
+    },
+    {
+        "id": "input_modalities_other_max",
+        "question": "What is the maximum input size for the other input modalities",
+        "description": "return the max input size or 'N/A' if other input modalities are not an input modality"
+    },
+    {
+        "id": "output_modalities_text_check",
+        "question": "Did you use text as an output modality?",
+        "description": "yes or no"
+    },
+    {
+        "id": "output_modalities_text_max",
+        "question": "What is the maximum output size for the text output modality",
+        "description": "return the max output size or 'N/A' if text is not an output modality"
+    },
+    {
+        "id": "output_modalities_images_check",
+        "question": "Did you use images as an output modality?",
+        "description": "yes or no"
+    },
+    {
+        "id": "output_modalities_images_max",
+        "question": "What is the maximum output size for the images output modality",
+        "description": "return the max output size or 'N/A' if images are not an output modality"
+    },
+    {
+        "id": "output_modalities_audio_check",
+        "question": "Did you use audio as an output modality?",
+        "description": "yes or no"
+    },
+    {
+        "id": "output_modalities_audio_max",
+        "question": "What is the maximum output size for the audio output modality",
+        "description": "return the max output size or 'N/A' if audio is not an output modality"
+    },
+    {
+        "id": "output_modalities_video_check",
+        "question": "Did you use video as an output modality?",
+        "description": "yes or no"
+    },
+    {
+        "id": "output_modalities_video_max",
+        "question": "What is the maximum output size for the video output modality",
+        "description": "return the max output size or 'N/A' if video is not an output modality"
+    },
+    {
+        "id": "output_modalities_other_check",
+        "question": "Did you use any other output modalities besides text, images, audio, video?",
+        "description": "if yes, please specify, otherwise write 'N/A'"
+    },
+    {
+        "id": "output_modalities_other_max",
+        "question": "What is the maximum output size for the other output modalities",
+        "description": "return the max output size or 'N/A' if other output modalities are not an output modality"
+    },
+    {
+        "id": "total_model_size",
+        "question": "What is the size of the text model?",
+        "description": "The total number of parameters of the model, recorded with at least two significant figures, e.g. 7.3*10^10 parameters."
+    },
+    {
+        "id": "total_model_size_500m",
+        "question": "Does the total size of the model fall between 1 and 500M parameters?",
+        "description": "yes or no"
+    },
+    {
+        "id": "total_model_size_5b",
+        "question": "Does the total size of the model fall between 500M and 5B parameters?",
+        "description": "yes or no"
+    },
+    {
+        "id": "total_model_size_15b",
+        "question": "Does the total size of the model fall between 5B and 15B parameters?",
+        "description": "yes or no"
+    },
+    {
+        "id": "total_model_size_50b",
+        "question": "Does the total size of the model fall between 15B and 50B parameters?",
+        "description": "yes or no"
+    },
+    {
+        "id": "total_model_size_100b",
+        "question": "Does the total size of the model fall between 50B and 100B parameters?",
+        "description": "yes or no"
+    },
+    {
+        "id": "total_model_size_500b",
+        "question": "Does the total size of the model fall between 100B and 500B parameters?",
+        "description": "yes or no"
+    },
+    {
+        "id": "total_model_size_1t",
+        "question": "Does the total size of the model fall between 500B and 1T parameters?",
+        "description": "yes or no"
+    },
+    {
+        "id": "total_model_size_max",
+        "question": "Is the total size of the model greater than 1T parameters?",
+        "description": "yes or no"
+    },
+    {
+        "id": "distribution_channels_aio_nca",
+        "question": "What are the distribution channels for the model?  This answer will be shared with AIO and NCAs",
+        "description": "A list of the methods of distribution (e.g. enterprise or subscription-based access through existing software suites or enterprise-specific solutions; public or subscription-based access through an API; public or proprietary access through integrated development environments, device-specific applications or firmware, open-source repositories) through which the model has been made available for distribution or use in the Union market. For each listed method of distribution, please include a link to information about how the model can be accessed, where available, and the level of model access (e.g. weights-level access, black-box access)."
+    },
+    {
+        "id": "distribution_channels_dps",
+        "question": "What are the distribution channels for the model?  This answer will be shared with DPs",
+        "description": "A list of the methods of distribution (e.g. enterprise or subscription-based access through existing software suites or enterprise-specific solutions; public or subscription-based access through an API; public or proprietary access through integrated development environments, device-specific applications or firmware, open-source repositories) through which the model can be made available to downstream providers."
+    },
+    {
+        "id": "license_link",
+        "question": "What is the link to the license?",
+        "description": "A link to model license(s) (otherwise provide a copy of the license(s) upon a request from the AIO pursuant to Article 91) or indicate that no model license exists."
+    },
+    {
+        "id": "license_category",
+        "question": "What is the license category?",
+        "description": "The type or category of licence(s) under which the model can be made available to downstream providers such as free and open source licences where models can be openly shared and providers can freely access, use, modify and redistribute them or modified versions thereof; less permissive licenses that impose certain restrictions on the use (e.g. to ensure ethical use), or proprietary licences that restrict access to the model's source code and impose limitations on usage, distribution, and modification. In the absence of a license, describe how access to the model is provided for downstream use, such as through terms of service. License category (e.g. open source, proprietary, etc.)"
+    },
+    {
+        "id": "license_assets",
+        "question": "Are there any additional assets to report?",
+        "description": "A list of additional assets (e.g. training data, data processing code, model training code, model inference code, model evaluation code), if any, that are made available with a description of how each can be accessed and what licenses, if any, relate to their use."
+    },
+    {
+        "id": "acceptable_use_policy",
+        "question": "Please provide a link to the acceptable use policy?",
+        "description": "Provide a link to the acceptable use policy applicable (or attach a copy to this document) or indicate that none exists."
+    },
+    {
+        "id": "intended_uses",
+        "question": "Please provide a list of intended uses.",
+        "description": "A description of either (i) the uses that are intended by the provider (e.g. productivity creative enhancement, translation, creative content generation, data analysis, data visualisation programming assistance, scheduling, customer support, variety of natural language tasks, etc...) or (ii) the uses that are restricted and/or prohibited by the provider (beyond those prohibited by EU or international law, including Article 5 AI Act), in both cases as specified in the information supplied by the provider in the instructions for use, terms and conditions, promotional or sales materials and statements, as well as in the technical documentation. If specifying (i) or (ii) is incompatible with the nature of the license under which the model is provided, then 'N/A' can be entered. [Recommended 200 words]"
+    },
+    {
+        "id": "type_and_nature",
+        "question": "What are the type and nature of AI systems in which the general-purpose AI model can be integrated:?",
+        "description": "A list or description of either (i) the type and nature of AI systems into which the general-purpose AI model can be integrated or (ii) the type and nature of AI systems into which the general-purpose AI model should not be integrated. Examples may include autonomous systems, conversational assistants, decision support systems, creative AI systems, predictive systems, cybersecurity, surveillance, or human-AI collaboration. [Recommended up to 300 words]"
+    },
+    {
+        "id": "technical_means",
+        "question": "What are the technical means for model integration:?",
+        "description": "A general description of the technical means (e.g. instructions for use, infrastructure, tools) required for the general-purpose AI model to be integrated into AI systems. [Recommended 100 words]"
+    },
+    {
+        "id": "required_hardware",
+        "question": "What is a description of the required hardware?",
+        "description": "A description of any hardware, including the version, required to use the model, where applicable. If not applicable (e.g. model offered via an API), 'N/A' should be entered. [Recommended 100 words]"
+    },
+    {
+        "id": "required_software",
+        "question": "What is a description of the required software?",
+        "description": "A description of any software, including the version, required to use the model where applicable. If not applicable, 'N/A' should be entered. [Recommended 100 words]"
+    },
+    {
+        "id": "design_specifications",
+        "question": "What are the design specifications of the training process?",
+        "description": "A general description of the main steps or stages involved in the training process, including training methodologies and techniques, the key design choices, assumptions made and what the model is designed to optimise for, and the relevance of different parameters, as applicable. For example, 'the model is initialized with randomly selected weights and trained using gradient-based optimization via the Adam optimizer in two steps. First, the model is trained to predict the next word on a large pretraining corpus using the cross-entropy loss, passing over the data for a single epoch. Second, the model is post-trained on a dataset of human preferences for 10 epochs to align the model with human values and make it more useful in responding to user prompts' [Recommended 400 words]"
+    },
+    {
+        "id": "decision_rationale",
+        "question": "Describe how key decisions were made.",
+        "description": "A description of how and why key design choices were made in model training. [Recommended 200 words]"
+    },
+    {
+        "id": "data_training_type_text",
+        "question": "Was text data used for training, testing, or validation?",
+        "description": "yes or no"
+    },
+    {
+        "id": "data_training_type_images",
+        "question": "Were images used for training, testing, or validation?",
+        "description": "yes or no"
+    },
+    {
+        "id": "data_training_type_audio",
+        "question": "Was audio data used for training, testing, or validation?",
+        "description": "yes or no"
+    },
+    {
+        "id": "data_training_type_video",
+        "question": "Was video data used for training, testing, or validation?",
+        "description": "yes or no"
+    },
+    {
+        "id": "data_training_type_other",
+        "question": "Was any data besides text, images, audio, or video used for training, testing, or validation?",
+        "description": "if yes, please specify, otherwise write 'N/A'"
+    },
+    {
+        "id": "data_provenance_web",
+        "question": "Did any data used for training, testing, or validation come from web crawling?",
+        "description": "yes or no"
+    },
+    {
+        "id": "data_provenance_private",
+        "question": "Did any data used for training, testing, or validation come from Private non-publicly available datasets obtained from third parties?",
+        "description": "yes or no"
+    },
+    {
+        "id": "data_provenance_user",
+        "question": "Did any data used for training, testing, or validation come from user data?",
+        "description": "yes or no"
+    },
+    {
+        "id": "data_provenance_public",
+        "question": "Did any data used for training, testing, or validation come from publicly available datasets?",
+        "description": "yes or no"
+    },
+    {
+        "id": "data_provenance_synthetic",
+        "question": "Did any data used for training, testing, or validation come from Synthetic data that is not publicly accessible (when created directly by or on behalf of the provider)?",
+        "description": "yes or no"
+    },
+    {
+        "id": "data_provenance_other_check",
+        "question": "Did any data used for training, testing, or validation come from data collected from other means (besides web crawling, private non-publicly available data, user data, publicly available datasets, or synthetic data)?",
+        "description": "yes or no"
+    },
+    {
+        "id": "data_provenance_other",
+        "question": "Did any data used for training, testing, or validation come from data collected from other means (besides web crawling, private non-publicly available data, user data, publicly available datasets, or synthetic data)?",
+        "description": "if yes, please describe, otherwise write 'N/A'"
+    },
+    {
+        "id": "how_data_obtained",
+        "question": "How was data obtained and selected?",
+        "description": "A description of the methods used to obtain and select training, testing, and validation data, including methods and resources used to annotate data, and models and methods used to generate synthetic data where applicable. For data previously obtained from third parties, a description of how the provider obtained the rights to the data if not already disclosed in the public summary of training data published in accordance with Article 53(1). point (d). [Recommended 300 words]"
+    },
+    {
+        "id": "data_points_ncas",
+        "question": "How much data was used? This answer will be shared with NCAs",
+        "description": "The size (in number of data points) of the training, testing, and validation data respectively, together with the definition of the unit of data points (e.g. tokens or documents, images, hours of video or frames), recorded with at least one significant | figure (e.g. 3x10^13 tokens)."
+    },
+    {
+        "id": "data_points_aio",
+        "question": "How much data was used? This answer will be shared with AIO",
+        "description": "The size (in number of data points) of the training, testing, and validation data respectively, together with the definition of the unit of data points (e.g. tokens or documents, images, hours of video or frames), recorded with at least two significant figures (e.g. 1.5x10^13 tokens)."
+    },
+    {
+        "id": "scope",
+        "question": "What are the scope and main characteristics?",
+        "description": "A general description of the scope and main characteristics of the training, testing and validation data, such as domain (e.g. healthcare, science, law), geography (e.g. global, restricted to a certain region), language, modality coverage, where applicable. [Recommended 200 words]"
+    },
+    {
+        "id": "data_curation",
+        "question": "What are your data curation methodologies?",
+        "description": "General description of the data processing involved in transforming the acquired data into training, testing, and validation data for the model, such as cleaning (e.g. filtering out irrelevant content such as advertisements), normalisation (e.g. tokenizing), augmentation (e.g. back-translation). [Recommended 300 words]"
+    },
+    {
+        "id": "detect_unsuitability",
+        "question": "What measures did you take to detect unsuitability of your data sources?",
+        "description": "A description of any methods implemented in data acquisition or processing, if any, to detect the presence of unsuitable data sources considering the model's intended uses, including but not limited to illegal content, child sexual abuse material (CSAM), non-consensual intimate imagery (NCII), and personal data leading to its unlawful processing. [Recommended 400 words]"
+    },
+    {
+        "id": "detect_biases",
+        "question": "What measures did you take to detect unidentifiable biases?",
+        "description": "A description of any methods implemented in data acquisition or processing, if any, to address the prevalence of identifiable biases in the training data. [Recommended 200 words]"
+    },
+    {
+        "id": "training_time_ncas",
+        "question": "How long did it take you to train your model? This answer will be shared with NCAs",
+        "description": "A description of what period is being measured along with the range that its duration falls under, within the following ranges: less than 1 month, 1—3 months, 3-6 months, more than 6 months."
+    },
+    {
+        "id": "training_time_aio",
+        "question": "How long did it take you to train your model? This answer will be shared with AIO",
+        "description": "A description of what period is being measured along with the duration in wall clock days (e.g. 9x10^1 days) and in hardware days (e.g. 4x10^5 Nvidia A100 days and 2x10^5 Nvidia H100 days), both recorded with at least one significant figure."
+    },
+    {
+        "id": "computation_used_ncas",
+        "question": "What was the amount of computation used for training? This answer will be shared with NCAs",
+        "description": "Measured or estimated amount of computation used for training, reported in floating point operations and recorded up to its order of magnitude (e.g. 10^24 floating point operations)."
+    },
+    {
+        "id": "computation_used_aio",
+        "question": "What was the amount of computation used for training? This answer will be shared with AIO",
+        "description": "Measured or estimated amount of computation used for training, reported in computational operations and recorded with at least two significant figures (e.g. 2.4x10^25 floating point operations)."
+    },
+    {
+        "id": "computation_methodology",
+        "question": "How did you measure computation used for training?",
+        "description": "In the absence of a delegated act adopted in accordance with Article 53(5) AI Act to detail measurement and calculation methodologies, describe the methodology used to measure or estimate the amount of computation used for training."
+    },
+    {
+        "id": "energy_used",
+        "question": "How much energy was used for training?",
+        "description": "Measured or estimated amount of energy used for training, reported in Megawatt- hours and recorded with at least two significant figures (e.g. 1.0x102 MWh). If the amount of energy used for training cannot be estimated due to the lack of critical information from a compute or hardware provider, enter 'N/A'."
+    },
+    {
+        "id": "energy_methodology",
+        "question": "What is your energy measurement methodology?",
+        "description": "In the absence of a delegated act adopted in accordance with Article 53(5) AI Act to detail measurement and calculation methodologies, describe the methodology used to measure or estimate the amount of energy used for training. Where the energy consumption of the model is unknown, the energy consumption may be estimated based on information about computational resources used. If the amount of energy used for training cannot be estimated due to a lack of critical information from a compute or hardware provider, the provider should disclose the type of information they lack. [Recommended 100 words]"
+    },
+    {
+        "id": "benchmark_computation",
+        "question": "What is the benchmarked amount of computation used for inference? This item relates to energy consumption during inference, which makes up the 'energy consumption of the model' (Annex XI, 2(e), AI Act) together with energy consumption during training. Since energy consumption during inference depends on more than just the model itself, the information required for this item is limited to relevant information depending only on the model, namely computational resources used for inference.",
+        "description": "Benchmarked amount of computation used for inference, reported in floating point operations, recorded with at least two significant figures (e.g. 5.1x10^17 floating point operations)."
+    },
+    {
+        "id": "computation_measurement_methodology",
+        "question": "What is the measurement methodology used to calcualte the benchmark computation for inference?",
+        "description": "In the absence of a delegated act adopted in accordance with Article 53(5) AI Act to detail measurement and calculation methodologies, provide a description of a computational task (e.g. generating 100000 tokens) and the hardware (e.g. 64 Nvidia A100s) used to measure or estimate the amount of computation used for inference."
+    }
+]

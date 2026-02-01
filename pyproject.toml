@@ -1,0 +1,20 @@
+[project]
+name = "ai-act-compliance-mcp-server"
+version = "0.1.0"
+description = "MCP server for generating EU AI Act compliance documentation aimed at Article 53 for GPAI."
+requires-python = ">=3.10"
+dependencies = [
+    "mcp[cli]",
+    "huggingface_hub",
+    "python-docx"
+]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+py-modules = ["server"]
+
+[project.scripts]
+ai-compliance-server = "server:main"
