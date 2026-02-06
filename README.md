@@ -8,6 +8,8 @@
 
 This custom MCP server automates the generation of EU AI Act compliance documentation (Article 53 technical documentation) for General Purpose AI models. It directly extracts metadata from a Hugging Face model card to generate a completed `.docx` compliance form, following the General-Purpose AI Code of Practice described here: https://digital-strategy.ec.europa.eu/en/policies/contents-code-gpai
 
+![EU AI Act Compliance Form Builder Demo](images/demo_screenshot.png)
+
 
 > [!TIP]
 > **Best Practice:**  
