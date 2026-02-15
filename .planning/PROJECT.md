@@ -2,7 +2,7 @@
 
 ## What This Is
 
-An MCP server that helps users generate EU AI Act Article 53 GPAI compliance documentation from Hugging Face model cards. Claude fetches and enriches model card data, answers 50+ compliance questions, and generates a downloadable Word document. Deployed on Railway and usable from Claude Desktop or Claude.ai.
+An MCP server that helps users generate EU AI Act Article 53 GPAI compliance documentation from Hugging Face model cards. Claude fetches and enriches model card data, answers 50+ compliance questions, generates a downloadable Word document, and produces a companion PDF source citation report tracking the provenance and confidence of every answer. Deployed on Railway and usable from Claude Desktop or Claude.ai.
 
 ## Core Value
 
@@ -20,55 +20,64 @@ Every answer in the compliance document must be traceable back to its source —
 - ✓ Support Claude Desktop (stdio) and Claude.ai (HTTP/SSE) connections — existing
 - ✓ CORS handling for cross-origin MCP clients — existing
 - ✓ Background cleanup of expired documents — existing
+- ✓ Capture source citations during compliance form generation (quote, section, confidence level per answer) — v1.1
+- ✓ New `generate_source_report` MCP tool that produces a PDF source citation report — v1.1
+- ✓ PDF report shows for each field: question ID, answer, source location (section + quote), confidence level — v1.1
+- ✓ Inference chains for non-direct answers: related quote(s) + reasoning that led to the answer — v1.1
+- ✓ PDF generated server-side using ReportLab — v1.1
+- ✓ PDF served via same download endpoint as DOCX files — v1.1
 
 ### Active
 
-- [ ] Capture source citations during compliance form generation (quote, section, confidence level per answer)
-- [ ] New `generate_source_report` MCP tool that produces a PDF source citation report
-- [ ] PDF report shows for each field: question ID, answer, source location (section + quote), confidence level (DIRECT/INFERRED/DEFAULT/NOT FOUND)
-- [ ] Inference chains for non-direct answers: related quote(s) + reasoning that led to the answer
-- [ ] PDF generated server-side using ReportLab
-- [ ] PDF served via same download endpoint as DOCX files
+(None — define requirements for next milestone with `/gsd:new-milestone`)
 
 ### Out of Scope
 
 - Modifying the existing DOCX template structure — not needed for source tracking
 - Real-time validation during form fill — source report is post-generation
 - Embedding citations directly into the DOCX — separate PDF report is cleaner
-- Authentication/authorization — not part of this milestone
+- Authentication/authorization — not addressed yet
+- PDF/A archival format — verify regulatory requirements before investing effort
+- Multi-source reconciliation — deferred to v2
+- Change tracking across compliance form versions — deferred to v2
+- Auditor annotation space — deferred to v2
 
 ## Context
 
-**Existing architecture:** FastMCP server with 3 tools (`fetch_hf_model_card`, `get_compliance_requirements`, `generate_compliance_doc`) and 2 resources. Document generation uses python-docx template filling. Files stored in `DATA_DIR` with 24-hour TTL cleanup.
+Shipped v1.1 with 2,279 LOC Python (57 tests passing).
+Tech stack: Python 3.10+, FastMCP, python-docx, ReportLab 4.4.10, Pydantic v2, DejaVu Sans font family.
+Deployed on Railway with persistent volume storage.
 
-**Current workflow:** User provides model ID → Claude fetches model card → Claude answers compliance questions → Claude calls `generate_compliance_doc` with JSON answers → Server fills DOCX template → Returns download link.
+**Architecture:** FastMCP server with 4 tools (`fetch_hf_model_card`, `get_compliance_requirements`, `generate_compliance_doc`, `generate_source_report`) and 2 resources. Document generation uses python-docx for DOCX and ReportLab for PDF. Files stored in `DATA_DIR` with 24-hour TTL cleanup handling both .docx and .pdf files.
 
-**New workflow addition:** After generating DOCX, Claude calls `generate_source_report` with source citation JSON → Server generates PDF using ReportLab → Returns download link. The source citation JSON is a separate parameter containing per-field metadata (source quote, section heading, confidence level, inference reasoning).
+**Workflow:** User provides model ID -> Claude fetches model card -> Claude answers compliance questions while tracking source citations -> Claude calls `generate_compliance_doc` (DOCX) -> Claude calls `generate_source_report` (PDF) -> User gets both documents.
 
 **Confidence levels:**
-- **DIRECT** — Answer directly quoted from model card (include exact quote + section)
-- **INFERRED** — Answer derived from related information (include related quote(s) + reasoning chain)
-- **DEFAULT** — Standard/assumed value used (explain why default was appropriate)
-- **NOT FOUND** — Information not available in model card (note what was searched for)
-
-**Key technical consideration:** The source citation data is structured by Claude during the compliance form generation step. The `generate_source_report` tool receives this pre-structured data — it doesn't re-analyze the model card.
+- **DIRECT** — Answer directly quoted from model card (verbatim quote + section, displayed in italics)
+- **INFERRED** — Answer derived from related information (related quote(s) + reasoning chain)
+- **DEFAULT** — Standard/assumed value used (explains why default was appropriate)
+- **NOT FOUND** — Information not available in model card (documents what was searched for)
 
 ## Constraints
 
-- **Stack**: Python 3.10+, ReportLab for PDF generation — matches existing Python stack
-- **Deployment**: Must work on Railway with same volume mount for PDF storage
-- **Cleanup**: PDFs must be handled by existing 24-hour cleanup thread (extend to .pdf files)
-- **MCP Protocol**: New tool must follow existing `@mcp.tool()` patterns
-- **Dependencies**: ReportLab is the only new dependency — keep it minimal
+- **Stack**: Python 3.10+, ReportLab for PDF, python-docx for DOCX
+- **Deployment**: Railway with persistent volume mount for document storage
+- **Cleanup**: 24-hour TTL cleanup thread handles both .docx and .pdf files
+- **MCP Protocol**: All tools follow `@mcp.tool()` patterns
+- **Dependencies**: Minimal — ReportLab is the only dependency added in v1.1
 
 ## Key Decisions
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Separate tool for source report (not combined with DOCX generation) | Keeps concerns separated, allows generating report independently, doesn't break existing DOCX workflow | — Pending |
-| Source data as separate JSON parameter (not embedded in compliance data) | Clean separation between answers and their provenance metadata | — Pending |
-| ReportLab for PDF generation | Pure Python, no system dependencies, well-maintained, sufficient for structured reports | — Pending |
-| Confidence levels: DIRECT/INFERRED/DEFAULT/NOT FOUND | Matches the user's existing validation prompt categories, covers all source types | — Pending |
+| Separate tool for source report (not combined with DOCX generation) | Keeps concerns separated, allows generating report independently, doesn't break existing DOCX workflow | Good — clean separation, independent generation works well |
+| Source data as separate JSON parameter (not embedded in compliance data) | Clean separation between answers and their provenance metadata | Good — Pydantic validation catches errors before PDF generation |
+| ReportLab for PDF generation | Pure Python, no system dependencies, well-maintained, sufficient for structured reports | Good — handles Unicode, tables, multi-page well |
+| Confidence levels: DIRECT/INFERRED/DEFAULT/NOT FOUND | Matches the user's existing validation prompt categories, covers all source types | Good — clear semantic distinction, maps well to visual formatting |
+| DejaVu Sans font for Unicode rendering | Open-source, supports European languages and common Unicode symbols | Good — prevents encoding crashes |
+| WCAG AA compliant confidence colors | Accessible color coding with 4.5:1+ contrast ratio | Good — works in print and on screen |
+| context.md workflow guidance instead of code changes | System prompt modification enables workflow changes without code changes | Good — faster iteration, matches existing patterns |
+| 3-phase structure (merged scale testing) | 25 requirements extending existing system, 3 phases optimal delivery | Good — completed efficiently in single day |
 
 ---
-*Last updated: 2026-02-15 after initialization*
+*Last updated: 2026-02-15 after v1.1 milestone*
