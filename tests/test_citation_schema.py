@@ -64,6 +64,31 @@ def test_valid_citation_empty_optional_strings():
     assert citation.source_section == ""
 
 
+def test_citation_with_source_document():
+    """Citation with source_document field accepts strings and defaults to empty."""
+    # Test with source_document provided
+    citation_with_doc = Citation(
+        question_id="Q1",
+        question_text="What is the model architecture?",
+        answer="Transformer",
+        source_quote="Uses transformer architecture",
+        source_section="Architecture",
+        source_document="Model Card",
+        confidence=ConfidenceLevel.DIRECT,
+        reasoning="Found in model card"
+    )
+    assert citation_with_doc.source_document == "Model Card"
+
+    # Test default empty string
+    citation_without_doc = Citation(
+        question_id="Q2",
+        question_text="Test question?",
+        confidence=ConfidenceLevel.DEFAULT,
+        reasoning="Standard value"
+    )
+    assert citation_without_doc.source_document == ""
+
+
 def test_valid_report_multiple_citations():
     """CitationReport with multiple citations."""
     citations = [
@@ -202,6 +227,7 @@ def test_validate_json_valid():
                 'answer': 'Test answer',
                 'source_quote': 'Test quote',
                 'source_section': 'Section 1',
+                'source_document': 'Model Card',
                 'confidence': 'DIRECT',
                 'reasoning': 'Test reasoning',
             }
@@ -212,6 +238,7 @@ def test_validate_json_valid():
     assert isinstance(result, CitationReport)
     assert len(result.citations) == 1
     assert result.citations[0].question_id == 'Q1'
+    assert result.citations[0].source_document == 'Model Card'
 
 
 def test_validate_json_invalid_raises_valueerror():

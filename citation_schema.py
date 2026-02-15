@@ -31,6 +31,7 @@ class Citation(BaseModel):
     answer: str = Field(default="")
     source_quote: str = Field(default="")
     source_section: str = Field(default="")
+    source_document: str = Field(default="")
     confidence: ConfidenceLevel
     reasoning: str = Field(min_length=1)
 

@@ -15,12 +15,12 @@ Adding PDF-based source citation reporting to enable audit trails. The system cu
 ## Current Position
 
 **Phase:** Phase 3 - Citation Features & Workflow (COMPLETE)
-**Plan:** 03-02 complete
+**Plan:** 03-04 complete
 **Status:** All phases complete — milestone delivered
 
 **Progress:**
 ```
-[██████████] 100% (6/6 plans complete overall)
+[██████████] 100% (7/7 plans complete overall)
 
 Phase 1: PDF Infrastructure & Data Model ██████████ 7/7 ✓
 Phase 2: MCP Tool Integration & File Management ██████████ 7/7 ✓
@@ -45,6 +45,7 @@ Phase 3: Citation Features & Workflow ██████████ 11/11 ✓ (
 | 02    | 02   | 2min     | 2     | 1     | 2026-02-15 |
 | 03    | 01   | 3min     | 2     | 2     | 2026-02-15 |
 | 03    | 02   | 2min     | 2     | 2     | 2026-02-15 |
+| 03    | 04   | 2min     | 1     | 1     | 2026-02-15 |
 
 ## Accumulated Context
 
@@ -174,6 +175,12 @@ Phase 3: Citation Features & Workflow ██████████ 11/11 ✓ (
 **Decision:** Add semantic verification tests for CITE-03 and CITE-04
 **Rationale:** Presence tests verify fields exist; semantic tests verify reasoning content explains WHY. CITE-03 requires INFERRED citations show derivation chain; CITE-04 requires DEFAULT citations explain why standard value is appropriate. Content quality matters for audit trail value.
 
+---
+
+**Date:** 2026-02-15
+**Decision:** Widen PDF table # column from 0.3" to 0.7" to support long question IDs
+**Rationale:** Question IDs like "training_data_sources" (21 chars) wrapped across 7+ lines at 0.3" width. At 8pt font, 0.7" supports ~21 characters, reducing wrapping to 1-2 lines max. Redistributed space from Source Quote (2.0"→1.8") and Section (0.6"→0.5") columns while maintaining 7.5" total width within page margins.
+
 ### Active TODOs
 
 **Phase 1 - PDF Infrastructure & Data Model:**
@@ -263,12 +270,12 @@ When resuming work on this milestone:
 
 ## Last Session
 
-**Timestamp:** 2026-02-15T14:32:55Z
-**Stopped at:** Completed 03-02-PLAN.md (citation features workflow) - MILESTONE COMPLETE
-**Next action:** Source Citation Reports milestone complete. All 25 requirements delivered across 3 phases.
+**Timestamp:** 2026-02-15T18:30:46Z
+**Stopped at:** Completed 03-04-PLAN.md (PDF table column width rebalancing) - MILESTONE COMPLETE
+**Next action:** Source Citation Reports milestone complete. All requirements delivered across 3 phases. Gap closure plan 03-04 addressed table layout polish.
 
 ---
 
 *State tracking for: Source Citation Reports milestone*
 *Created: 2026-02-15*
-*Last updated: 2026-02-15 after 03-02 completion (MILESTONE COMPLETE)*
+*Last updated: 2026-02-15 after 03-04 completion (MILESTONE COMPLETE)*

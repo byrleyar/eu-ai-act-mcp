@@ -24,6 +24,7 @@ While filling out the compliance form, you MUST track where each answer came fro
 - **answer**: What you put in the compliance form
 - **source_quote**: Exact text from the model card (if available; empty string if not)
 - **source_section**: Heading where the information was found (e.g., "Model Architecture"; empty string if not applicable)
+- **source_document**: Which document contained the quote (e.g., "Model Card", "PDF Attachment", "User Context"; empty string if not applicable)
 - **confidence**: Your confidence level in the answer (see definitions below)
 - **reasoning**: Why you chose this answer and this confidence level
 
@@ -53,6 +54,7 @@ While filling out the compliance form, you MUST track where each answer came fro
       "answer": "Transformer-based decoder-only architecture with 405B parameters",
       "source_quote": "Llama 3.1 uses a standard transformer architecture with grouped-query attention (GQA) and 405 billion parameters.",
       "source_section": "Model Architecture",
+      "source_document": "Model Card",
       "confidence": "DIRECT",
       "reasoning": "Architecture details explicitly stated in Model Architecture section with exact parameter count."
     },
@@ -62,6 +64,7 @@ While filling out the compliance form, you MUST track where each answer came fro
       "answer": "",
       "source_quote": "",
       "source_section": "",
+      "source_document": "",
       "confidence": "NOT FOUND",
       "reasoning": "Searched Training Details and Compute sections but exact FLOPs or GPU-hours not specified."
     }

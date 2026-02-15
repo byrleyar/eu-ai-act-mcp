@@ -248,11 +248,17 @@ def generate_source_report_pdf(output_stream: BytesIO, citations: list[dict], mo
         answer = citation.get('answer', '')
         source_quote = citation.get('source_quote', '')
         source_section = citation.get('source_section', '')
+        source_document = citation.get('source_document', '')
         reasoning = citation.get('reasoning', '')
 
         # Format Source/Details column based on confidence level
         if confidence == 'DIRECT':
-            source_details = f"<i>{_escape_xml(source_quote)}</i><br/><br/>Section: {_escape_xml(source_section)}"
+            # Build source details with optional document line
+            source_parts = [f"<i>{_escape_xml(source_quote)}</i>"]
+            if source_document:
+                source_parts.append(f"Document: {_escape_xml(source_document)}")
+            source_parts.append(f"Section: {_escape_xml(source_section)}")
+            source_details = "<br/>".join(source_parts)
         elif confidence == 'INFERRED':
             source_details = f"Related: <i>{_escape_xml(source_quote)}</i><br/><br/>Reasoning: {_escape_xml(reasoning)}"
         elif confidence == 'DEFAULT':
