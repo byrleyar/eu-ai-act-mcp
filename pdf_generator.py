@@ -26,6 +26,8 @@ from reportlab.pdfbase.ttfonts import TTFont
 # Register DejaVu Sans font at module load
 FONT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'fonts')
 pdfmetrics.registerFont(TTFont('DejaVuSans', os.path.join(FONT_DIR, 'DejaVuSans.ttf')))
+pdfmetrics.registerFont(TTFont('DejaVuSans-Oblique', os.path.join(FONT_DIR, 'DejaVuSans-Oblique.ttf')))
+pdfmetrics.registerFontFamily('DejaVuSans', normal='DejaVuSans', italic='DejaVuSans-Oblique')
 
 # WCAG AA compliant confidence level colors (4.5:1+ contrast with black text)
 CONFIDENCE_COLORS = {
@@ -280,13 +282,13 @@ def generate_source_report_pdf(output_stream: BytesIO, citations: list[dict], mo
 
     # Create table with column widths
     col_widths = [
-        0.3 * inch,  # #
-        1.3 * inch,  # Question
-        1.4 * inch,  # Answer
-        2.0 * inch,  # Source Quote
-        0.6 * inch,  # Section
-        0.8 * inch,  # Confidence
-        1.1 * inch,  # Reasoning
+        0.7 * inch,  # # (9% of width - supports 17-21 char question IDs)
+        1.2 * inch,  # Question (16%)
+        1.3 * inch,  # Answer (17%)
+        1.8 * inch,  # Source Quote (24%)
+        0.5 * inch,  # Section (7% - shorter refs like "Architecture")
+        0.8 * inch,  # Confidence (11% - unchanged, fits "INFERRED")
+        1.2 * inch,  # Reasoning (16%)
     ]
 
     table = Table(table_data, colWidths=col_widths, repeatRows=1, splitByRow=True)
