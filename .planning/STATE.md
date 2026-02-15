@@ -14,25 +14,25 @@ Adding PDF-based source citation reporting to enable audit trails. The system cu
 
 ## Current Position
 
-**Phase:** Phase 1 - PDF Infrastructure & Data Model
-**Plan:** 02 complete (PDF generator)
-**Status:** In progress
+**Phase:** Phase 2 - MCP Tool Integration & File Management (in progress)
+**Plan:** 02-01 complete, continuing Phase 2
+**Status:** Phase 2 started — 1/2 plans complete
 
 **Progress:**
 ```
-[████░░░░░░░░░░░░░░░░] 16% (4/25 requirements complete)
+[████████░░░░░░░░░░░░] 40% (10/25 requirements complete)
 
-Phase 1: PDF Infrastructure & Data Model ████░░░░░░ 4/7
-Phase 2: MCP Tool Integration & File Management ░░░░░░░░░░ 0/7
+Phase 1: PDF Infrastructure & Data Model ██████████ 7/7 ✓
+Phase 2: MCP Tool Integration & File Management ████░░░░░░ 3/7
 Phase 3: Citation Features & Workflow ░░░░░░░░░░ 0/11
 ```
 
 ## Performance Metrics
 
 **Milestone started:** 2026-02-15
-**Phases completed:** 0/3
-**Requirements completed:** 4/25 (DATA-01, DATA-02, DATA-03, INFRA-01)
-**Current phase progress:** 57% (4/7 in Phase 1)
+**Phases completed:** 1/3
+**Requirements completed:** 10/25 (DATA-01, DATA-02, DATA-03, INFRA-01, INFRA-02, INFRA-03, INFRA-04, TOOL-01, TOOL-02, FILE-01)
+**Current phase progress:** Phase 2 started — 1/2 plans complete
 
 **Velocity:** Established
 
@@ -40,6 +40,7 @@ Phase 3: Citation Features & Workflow ░░░░░░░░░░ 0/11
 |-------|------|----------|-------|-------|-----------|
 | 01    | 01   | 7min     | 2     | 4     | 2026-02-15 |
 | 01    | 02   | 4min     | 2     | 4     | 2026-02-15 |
+| 02    | 01   | 2min     | 2     | 1     | 2026-02-15 |
 
 ## Accumulated Context
 
@@ -91,6 +92,24 @@ Phase 3: Citation Features & Workflow ░░░░░░░░░░ 0/11
 **Decision:** XML-escape all user text before ReportLab Paragraph wrapping
 **Rationale:** ReportLab's Paragraph flowable uses XML markup parsing. User-provided text containing &, <, > characters crashes the parser. Using html.escape() prevents this without losing data.
 
+---
+
+**Date:** 2026-02-15
+**Decision:** Use _sources_ infix in PDF filename to distinguish from compliance docs
+**Rationale:** Compliance docs use {ModelName}_{uuid}.docx while source reports use {ModelName}_sources_{uuid}.pdf. The _sources_ infix makes file purpose clear in DATA_DIR listings and prevents filename collisions.
+
+---
+
+**Date:** 2026-02-15
+**Decision:** Use standard base64.b64encode (not urlsafe_b64encode) for MCP EmbeddedResource
+**Rationale:** Research findings showed MCP validation errors occur with urlsafe encoding. Standard base64 encoding matches generate_compliance_doc pattern and passes MCP validation.
+
+---
+
+**Date:** 2026-02-15
+**Decision:** Extend cleanup_old_files using tuple form of endswith(('.docx', '.pdf'))
+**Rationale:** Single cleanup thread handles all generated document types with same 24-hour TTL. Tuple form of endswith() is idiomatic Python for multiple extension checks, avoiding duplicate cleanup logic.
+
 ### Active TODOs
 
 **Phase 1 - PDF Infrastructure & Data Model:**
@@ -104,7 +123,10 @@ Phase 3: Citation Features & Workflow ░░░░░░░░░░ 0/11
 - Test memory usage with 50+ citation reports
 
 **Phase 2 - MCP Tool Integration & File Management:**
-- (Blocked until Phase 1 complete)
+- ✅ Implement generate_source_report MCP tool in server.py (02-01 complete)
+- ✅ Extend cleanup thread to handle .pdf files (02-01 complete)
+- ✅ Verify download endpoint serves PDFs with correct Content-Type (02-01 complete)
+- Remaining Phase 2 tasks TBD in subsequent plans
 
 **Phase 3 - Citation Features & Workflow:**
 - (Blocked until Phase 2 complete)
@@ -167,12 +189,12 @@ When resuming work on this milestone:
 
 ## Last Session
 
-**Timestamp:** 2026-02-15T11:52:11Z
-**Stopped at:** Completed 01-02-PLAN.md (PDF generator with ReportLab)
-**Next action:** Continue with plan 01-03 or next phase plan
+**Timestamp:** 2026-02-15T13:39:00Z
+**Stopped at:** Completed 02-01-PLAN.md (generate_source_report MCP tool integration)
+**Next action:** Continue with Phase 2 remaining plans or Phase 3 planning
 
 ---
 
 *State tracking for: Source Citation Reports milestone*
 *Created: 2026-02-15*
-*Last updated: 2026-02-15 after 01-02 completion*
+*Last updated: 2026-02-15 after 02-01 completion*
