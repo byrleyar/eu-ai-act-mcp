@@ -48,6 +48,36 @@ def _escape_xml(text: str) -> str:
     return html.escape(text)
 
 
+def _create_footer_callback(model_card_id: str):
+    """Create a footer callback function for PDF pages.
+
+    Args:
+        model_card_id: Model card identifier to display in footer
+
+    Returns:
+        Callback function with signature (canvas, doc) for use with doc.build()
+    """
+    def footer_callback(canvas, doc):
+        """Draw footer on each page with model card ID and timestamp."""
+        canvas.saveState()
+
+        # Set footer text properties
+        canvas.setFont('DejaVuSans', 8)
+        canvas.setFillGray(0.4)
+
+        # Left side: Model Card ID
+        canvas.drawString(0.5 * inch, 0.3 * inch, f"Model Card: {model_card_id}")
+
+        # Right side: Timestamp and page number
+        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M')
+        right_text = f"Generated: {timestamp} | Page {doc.page}"
+        canvas.drawRightString(doc.pagesize[0] - 0.5 * inch, 0.3 * inch, right_text)
+
+        canvas.restoreState()
+
+    return footer_callback
+
+
 def _build_executive_summary(citations: list[dict], model_card_id: str):
     """Build executive summary flowables showing confidence breakdown.
 
@@ -296,5 +326,6 @@ def generate_source_report_pdf(output_stream: BytesIO, citations: list[dict], mo
 
     story.append(table)
 
-    # Build PDF
-    doc.build(story)
+    # Create footer callback and build PDF
+    footer_fn = _create_footer_callback(model_card_id)
+    doc.build(story, onFirstPage=footer_fn, onLaterPages=footer_fn)

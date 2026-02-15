@@ -424,7 +424,7 @@ NOTE: This link will be active for 24 hours. After that, the file will be automa
 
 
 @mcp.tool()
-def generate_source_report(source_citations_json: str, model_name: str = "model") -> list[types.TextContent | types.EmbeddedResource]:
+def generate_source_report(source_citations_json: str, model_name: str = "model", model_card_id: str = "unknown") -> list[types.TextContent | types.EmbeddedResource]:
     """
     Generate a PDF source citation report from validated JSON.
 
@@ -435,6 +435,7 @@ def generate_source_report(source_citations_json: str, model_name: str = "model"
     Args:
         source_citations_json: JSON string with a "citations" array of citation objects
         model_name: Optional model name for the filename (default: "model")
+        model_card_id: Optional model card identifier for footer and summary (default: "unknown")
 
     Returns:
         List containing TextContent (download link) and EmbeddedResource (base64 PDF)
@@ -448,7 +449,7 @@ def generate_source_report(source_citations_json: str, model_name: str = "model"
     # Generate PDF
     try:
         buffer = io.BytesIO()
-        generate_source_report_pdf(buffer, [c.model_dump() for c in report.citations])
+        generate_source_report_pdf(buffer, [c.model_dump() for c in report.citations], model_card_id=model_card_id)
         pdf_bytes = buffer.getvalue()
     except Exception as e:
         return [types.TextContent(type="text", text=f"Error generating PDF: {str(e)}")]
