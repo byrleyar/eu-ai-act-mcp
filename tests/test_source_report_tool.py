@@ -223,3 +223,96 @@ def test_pdf_content_type_detection():
     mime_type, _ = mimetypes.guess_type("test.pdf")
 
     assert mime_type == 'application/pdf'
+
+
+# Edge case tests
+
+def test_tool_handles_multi_citation_report(cleanup_pdfs):
+    """Call with MULTI_CITATION_JSON (2 citations including NOT FOUND), verify result structure and PDF size."""
+    result = generate_source_report(MULTI_CITATION_JSON)
+
+    # Verify result structure
+    assert isinstance(result, list)
+    assert len(result) == 2
+
+    # Verify first item is TextContent
+    assert result[0].type == 'text'
+
+    # Verify second item is EmbeddedResource
+    assert result[1].type == 'resource'
+
+    # Decode PDF and verify it's non-trivial
+    blob = result[1].resource.blob
+    decoded_bytes = base64.b64decode(blob)
+
+    # PDF with 2 citations should be > 1000 bytes (indicating real content)
+    assert len(decoded_bytes) > 1000, "Multi-citation PDF should have substantial content"
+
+
+def test_tool_handles_unicode_in_citations(cleanup_pdfs):
+    """Create citation with Unicode characters, verify tool returns success without encoding crash."""
+    unicode_json = json.dumps({
+        "citations": [{
+            "question_id": "Q1",
+            "question_text": "What is the model's purpose?",
+            "answer": "Risk assessment using smart quotes and em-dashes",
+            "source_quote": "The system uses ML algorithms for naive Bayes classification",
+            "source_section": "Technical Description",
+            "confidence": "DIRECT",
+            "reasoning": "Found in technical documentation"
+        }]
+    })
+
+    # Should not raise exception
+    result = generate_source_report(unicode_json)
+
+    # Verify success
+    assert isinstance(result, list)
+    assert len(result) == 2
+    assert result[1].type == 'resource'
+
+    # Verify PDF is valid
+    blob = result[1].resource.blob
+    decoded_bytes = base64.b64decode(blob)
+    assert decoded_bytes.startswith(b'%PDF')
+
+
+def test_tool_handles_long_text_in_citations(cleanup_pdfs):
+    """Create citation with 500+ character answer and source_quote, verify tool returns success."""
+    long_text = "This is a very long answer that exceeds 500 characters. " * 10  # ~570 chars
+    long_quote = "This is a very long source quote that also exceeds 500 characters. " * 8  # ~536 chars
+
+    long_text_json = json.dumps({
+        "citations": [{
+            "question_id": "Q1",
+            "question_text": "What is the detailed purpose?",
+            "answer": long_text,
+            "source_quote": long_quote,
+            "source_section": "Section 1",
+            "confidence": "DIRECT",
+            "reasoning": "Detailed explanation from documentation"
+        }]
+    })
+
+    # Should not raise exception
+    result = generate_source_report(long_text_json)
+
+    # Verify success
+    assert isinstance(result, list)
+    assert len(result) == 2
+    assert result[1].type == 'resource'
+
+    # Verify PDF is valid
+    blob = result[1].resource.blob
+    decoded_bytes = base64.b64decode(blob)
+    assert decoded_bytes.startswith(b'%PDF')
+
+
+def test_tool_embedded_resource_uri_format(cleanup_pdfs):
+    """Verify result[1].resource.uri starts with 'file:///' and ends with '.pdf'."""
+    result = generate_source_report(VALID_CITATION_JSON)
+
+    # Check URI format (convert AnyUrl to string)
+    uri = str(result[1].resource.uri)
+    assert uri.startswith('file:///'), "URI should start with file:///"
+    assert uri.endswith('.pdf'), "URI should end with .pdf"
