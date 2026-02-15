@@ -144,14 +144,14 @@ def generate_source_report_pdf(output_stream: BytesIO, citations: list[dict]) ->
     col_widths = [
         0.3 * inch,  # #
         1.3 * inch,  # Question
-        1.5 * inch,  # Answer
+        1.4 * inch,  # Answer
         2.0 * inch,  # Source Quote
         0.6 * inch,  # Section
-        0.7 * inch,  # Confidence
+        0.8 * inch,  # Confidence
         1.1 * inch,  # Reasoning
     ]
 
-    table = Table(table_data, colWidths=col_widths, repeatRows=1)
+    table = Table(table_data, colWidths=col_widths, repeatRows=1, splitByRow=True)
 
     # Apply table style
     table.setStyle(TableStyle([
