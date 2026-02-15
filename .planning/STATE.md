@@ -14,9 +14,9 @@ Adding PDF-based source citation reporting to enable audit trails. The system cu
 
 ## Current Position
 
-**Phase:** Phase 3 - Citation Features & Workflow (COMPLETE)
-**Plan:** 03-04 complete
-**Status:** All phases complete — milestone delivered
+**Phase:** Phase 3 - Citation Features & Workflow
+**Plan:** 03-03 complete
+**Status:** In progress
 
 **Progress:**
 ```
@@ -45,7 +45,7 @@ Phase 3: Citation Features & Workflow ██████████ 11/11 ✓ (
 | 02    | 02   | 2min     | 2     | 1     | 2026-02-15 |
 | 03    | 01   | 3min     | 2     | 2     | 2026-02-15 |
 | 03    | 02   | 2min     | 2     | 2     | 2026-02-15 |
-| 03    | 04   | 2min     | 1     | 1     | 2026-02-15 |
+| 03    | 03   | 5min     | 2     | 6     | 2026-02-15 |
 
 ## Accumulated Context
 
@@ -181,6 +181,24 @@ Phase 3: Citation Features & Workflow ██████████ 11/11 ✓ (
 **Decision:** Widen PDF table # column from 0.3" to 0.7" to support long question IDs
 **Rationale:** Question IDs like "training_data_sources" (21 chars) wrapped across 7+ lines at 0.3" width. At 8pt font, 0.7" supports ~21 characters, reducing wrapping to 1-2 lines max. Redistributed space from Source Quote (2.0"→1.8") and Section (0.6"→0.5") columns while maintaining 7.5" total width within page margins.
 
+---
+
+**Date:** 2026-02-15
+**Decision:** Use DejaVu Sans font family for italic support
+**Rationale:** ReportLab's registerFontFamily enables automatic italic rendering when <i> tags are used in Paragraph markup, providing seamless integration without manual font switching. Downloaded DejaVuSans-Oblique.ttf from official release to enable professional typography for DIRECT citation quotes.
+
+---
+
+**Date:** 2026-02-15
+**Decision:** Make source_document optional with empty string default
+**Rationale:** Maintains backward compatibility with existing citations while enabling future source tracking. Empty string is more natural than None for optional text fields in Pydantic. Allows tracking which document (model card, PDF attachment, user context) contained each quote without breaking existing code.
+
+---
+
+**Date:** 2026-02-15
+**Decision:** Only display "Document:" line when source_document is non-empty
+**Rationale:** Prevents cluttering PDF with empty fields. Conditional formatting keeps output clean when source tracking isn't used while providing valuable attribution when it is.
+
 ### Active TODOs
 
 **Phase 1 - PDF Infrastructure & Data Model:**
@@ -270,12 +288,12 @@ When resuming work on this milestone:
 
 ## Last Session
 
-**Timestamp:** 2026-02-15T18:30:46Z
-**Stopped at:** Completed 03-04-PLAN.md (PDF table column width rebalancing) - MILESTONE COMPLETE
-**Next action:** Source Citation Reports milestone complete. All requirements delivered across 3 phases. Gap closure plan 03-04 addressed table layout polish.
+**Timestamp:** 2026-02-15T18:35:00Z
+**Stopped at:** Completed 03-03-PLAN.md (italic font support and source_document tracking)
+**Next action:** Continue with remaining Phase 3 plans if any, or mark milestone complete.
 
 ---
 
 *State tracking for: Source Citation Reports milestone*
 *Created: 2026-02-15*
-*Last updated: 2026-02-15 after 03-04 completion (MILESTONE COMPLETE)*
+*Last updated: 2026-02-15 after 03-03 completion*
