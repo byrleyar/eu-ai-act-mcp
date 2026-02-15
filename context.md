@@ -12,3 +12,65 @@ This is a legal document. It is extremely important that you do not guess or mak
 4.  Only ask the user if you are stuck on a critical field that prevents generation entirely. Otherwise, fill it out and let them review the final DOCX.
 
 In questions where there are recommended lengths for answers, you should strive to meet those lengths. In situations where you cannot, you need to respond to the user that the answer may be insufficient.
+
+## Citation Tracking
+
+### Track Your Sources
+
+While filling out the compliance form, you MUST track where each answer came from. For each question you answer, record:
+
+- **question_id**: The question identifier from questions.json (e.g., "model_architecture")
+- **question_text**: The full question text
+- **answer**: What you put in the compliance form
+- **source_quote**: Exact text from the model card (if available; empty string if not)
+- **source_section**: Heading where the information was found (e.g., "Model Architecture"; empty string if not applicable)
+- **confidence**: Your confidence level in the answer (see definitions below)
+- **reasoning**: Why you chose this answer and this confidence level
+
+**Confidence Level Definitions:**
+
+- **DIRECT**: Answer is a verbatim quote or close paraphrase of an explicit statement in the model card. The information is stated directly and clearly.
+- **INFERRED**: Answer derived from related information in the model card, with reasoning explaining the derivation. You're making a logical inference based on what's documented.
+- **DEFAULT**: Standard or assumed value appropriate for the context (e.g., version 1.0 for initial release). This is used when applying common defaults in the absence of specific information.
+- **NOT FOUND**: Information was searched for in the model card but not located. Document what you searched for.
+
+### When to Generate Source Report
+
+**IMMEDIATELY after calling `generate_compliance_doc`**, you MUST call `generate_source_report` with:
+
+- **source_citations_json**: JSON string containing all tracked citations
+- **model_name**: Same model name used in the compliance form
+- **model_card_id**: The Hugging Face model ID (e.g., "meta-llama/Llama-3.1-405B")
+
+**Example JSON format:**
+
+```json
+{
+  "citations": [
+    {
+      "question_id": "model_architecture",
+      "question_text": "What is the model architecture?",
+      "answer": "Transformer-based decoder-only architecture with 405B parameters",
+      "source_quote": "Llama 3.1 uses a standard transformer architecture with grouped-query attention (GQA) and 405 billion parameters.",
+      "source_section": "Model Architecture",
+      "confidence": "DIRECT",
+      "reasoning": "Architecture details explicitly stated in Model Architecture section with exact parameter count."
+    },
+    {
+      "question_id": "training_compute",
+      "question_text": "How much compute was used for training?",
+      "answer": "",
+      "source_quote": "",
+      "source_section": "",
+      "confidence": "NOT FOUND",
+      "reasoning": "Searched Training Details and Compute sections but exact FLOPs or GPU-hours not specified."
+    }
+  ]
+}
+```
+
+### Why This Matters
+
+The source citation report creates an **audit trail** showing exactly where each compliance answer came from, enabling auditors to verify answers against the model card.
+
+**DO NOT skip calling `generate_source_report`.** The citation report is a core deliverable alongside the compliance document.
