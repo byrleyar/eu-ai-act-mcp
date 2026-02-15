@@ -15,14 +15,14 @@ Adding PDF-based source citation reporting to enable audit trails. The system cu
 ## Current Position
 
 **Phase:** Phase 1 - PDF Infrastructure & Data Model
-**Plan:** 01 complete (citation schema)
+**Plan:** 02 complete (PDF generator)
 **Status:** In progress
 
 **Progress:**
 ```
-[███░░░░░░░░░░░░░░░░░] 12% (3/25 requirements complete)
+[████░░░░░░░░░░░░░░░░] 16% (4/25 requirements complete)
 
-Phase 1: PDF Infrastructure & Data Model ███░░░░░░░ 3/7
+Phase 1: PDF Infrastructure & Data Model ████░░░░░░ 4/7
 Phase 2: MCP Tool Integration & File Management ░░░░░░░░░░ 0/7
 Phase 3: Citation Features & Workflow ░░░░░░░░░░ 0/11
 ```
@@ -31,14 +31,15 @@ Phase 3: Citation Features & Workflow ░░░░░░░░░░ 0/11
 
 **Milestone started:** 2026-02-15
 **Phases completed:** 0/3
-**Requirements completed:** 3/25 (DATA-01, DATA-02, DATA-03)
-**Current phase progress:** 43% (3/7 in Phase 1)
+**Requirements completed:** 4/25 (DATA-01, DATA-02, DATA-03, INFRA-01)
+**Current phase progress:** 57% (4/7 in Phase 1)
 
 **Velocity:** Established
 
 | Phase | Plan | Duration | Tasks | Files | Completed |
 |-------|------|----------|-------|-------|-----------|
 | 01    | 01   | 7min     | 2     | 4     | 2026-02-15 |
+| 01    | 02   | 4min     | 2     | 4     | 2026-02-15 |
 
 ## Accumulated Context
 
@@ -72,16 +73,34 @@ Phase 3: Citation Features & Workflow ░░░░░░░░░░ 0/11
 **Decision:** Format validation errors with field paths for citation JSON
 **Rationale:** Error messages like "citations -> 0 -> confidence: Input should be 'DIRECT'..." pinpoint exact problem location in nested JSON, enabling users to fix issues without guessing.
 
+---
+
+**Date:** 2026-02-15
+**Decision:** Use DejaVu Sans font for Unicode rendering in PDFs
+**Rationale:** ReportLab's default fonts don't support Unicode characters like smart quotes, em-dashes, or accented letters. DejaVu Sans is open-source, widely compatible, and handles all European languages plus common Unicode symbols.
+
+---
+
+**Date:** 2026-02-15
+**Decision:** Enable splitByRow=True on PDF tables for long text handling
+**Rationale:** Without splitByRow, tables with tall cells cause LayoutError when cell height exceeds frame height. Enabling row splitting allows multi-page tables to break between rows cleanly.
+
+---
+
+**Date:** 2026-02-15
+**Decision:** XML-escape all user text before ReportLab Paragraph wrapping
+**Rationale:** ReportLab's Paragraph flowable uses XML markup parsing. User-provided text containing &, <, > characters crashes the parser. Using html.escape() prevents this without losing data.
+
 ### Active TODOs
 
 **Phase 1 - PDF Infrastructure & Data Model:**
 - ✅ Create Pydantic models for citation JSON schema validation (01-01 complete)
 - ✅ Write unit tests for citation schema validation (01-01 complete)
-- Set up ReportLab dependency with DejaVu Sans font
-- Implement `pdf_generator.py` with `generate_source_report(output_stream, citations)` function
-- Build auto-wrapping table layout with splitByRow support
-- Write unit tests for PDF generation with edge cases (long quotes, special characters, all confidence levels)
-- Verify ReportLab current version on PyPI (training data shows 4.2.x, may be 4.3+ in Feb 2026)
+- ✅ Set up ReportLab dependency with DejaVu Sans font (01-02 complete)
+- ✅ Implement `pdf_generator.py` with `generate_source_report(output_stream, citations)` function (01-02 complete)
+- ✅ Build auto-wrapping table layout with splitByRow support (01-02 complete)
+- ✅ Write unit tests for PDF generation with edge cases (01-02 complete - 12 tests)
+- ✅ Verify ReportLab current version on PyPI (confirmed 4.4.10 in Feb 2026)
 - Test memory usage with 50+ citation reports
 
 **Phase 2 - MCP Tool Integration & File Management:**
@@ -148,12 +167,12 @@ When resuming work on this milestone:
 
 ## Last Session
 
-**Timestamp:** 2026-02-15T11:44:38Z
-**Stopped at:** Completed 01-01-PLAN.md (citation schema)
-**Next action:** Continue with plan 01-02 (PDF generator implementation)
+**Timestamp:** 2026-02-15T11:52:11Z
+**Stopped at:** Completed 01-02-PLAN.md (PDF generator with ReportLab)
+**Next action:** Continue with plan 01-03 or next phase plan
 
 ---
 
 *State tracking for: Source Citation Reports milestone*
 *Created: 2026-02-15*
-*Last updated: 2026-02-15 after 01-01 completion*
+*Last updated: 2026-02-15 after 01-02 completion*

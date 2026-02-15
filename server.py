@@ -5,6 +5,8 @@ import json
 from huggingface_hub import ModelCard
 from huggingface_hub.utils import EntryNotFoundError, RepositoryNotFoundError
 from docx_generator import fill_template
+from citation_schema import validate_citation_json
+from pdf_generator import generate_source_report_pdf
 from starlette.requests import Request
 from starlette.responses import FileResponse, Response
 import mcp.types as types
@@ -39,19 +41,19 @@ print(f"INFO: Using storage directory: {DATA_DIR}")
 # --- background cleanup task ---
 def cleanup_old_files():
     """
-    Background thread that runs once an hour to delete files older than 24h.
+    Background thread that runs once an hour to delete .docx and .pdf files older than 24h.
     """
     while True:
         try:
             now = time.time()
             retention_seconds = 24 * 3600 # 24 hours
-            
+
             # List files in DATA_DIR
             if os.path.exists(DATA_DIR):
                 for filename in os.listdir(DATA_DIR):
                     file_path = os.path.join(DATA_DIR, filename)
-                    # Only delete .docx files to be safe
-                    if os.path.isfile(file_path) and filename.endswith(".docx"):
+                    # Delete .docx and .pdf files
+                    if os.path.isfile(file_path) and filename.endswith((".docx", ".pdf")):
                         stat = os.stat(file_path)
                         if now - stat.st_mtime > retention_seconds:
                             try:
@@ -61,7 +63,7 @@ def cleanup_old_files():
                                 print(f"CLEANUP ERROR: Could not delete {filename}: {e}")
         except Exception as e:
             print(f"CLEANUP FATAL ERROR: {e}")
-            
+
         # Sleep for 1 hour
         time.sleep(3600)
 
@@ -329,13 +331,13 @@ def generate_compliance_doc(compliance_data_json: str) -> list[types.TextContent
     # ensure templates dir exists
     template_dir = os.path.join(os.getcwd(), "templates")
     os.makedirs(template_dir, exist_ok=True)
-    
+
     # Use default template if user didn't specify one (conceptually)
     template_path = os.path.join(template_dir, "default_template.docx")
-    
+
     if not os.path.exists(template_path):
         return [types.TextContent(type="text", text=f"Error: Template not found at {template_path}")]
-    
+
     try:
         data = json.loads(compliance_data_json)
     except json.JSONDecodeError as e:
@@ -355,7 +357,7 @@ def generate_compliance_doc(compliance_data_json: str) -> list[types.TextContent
         buffer = io.BytesIO()
         fill_template(template_path, buffer, data)
         doc_bytes = buffer.getvalue()
-        
+
         # SAVE to DATA_DIR
         output_path = os.path.join(DATA_DIR, output_filename)
         with open(output_path, "wb") as f:
@@ -363,17 +365,17 @@ def generate_compliance_doc(compliance_data_json: str) -> list[types.TextContent
 
         # Encode as base64 string
         doc_b64 = base64.b64encode(doc_bytes).decode('utf-8')
-        
+
         # Load public URL from config OR Environment Variable (Railway)
         base_url = ""
-        
+
         # Priority 1: Environment Variable (Railway/Cloud)
         railway_domain = os.environ.get("RAILWAY_PUBLIC_DOMAIN") or os.environ.get("RAILWAY_STATIC_URL")
         if railway_domain:
             if not railway_domain.startswith("http"):
                  railway_domain = f"https://{railway_domain}"
             base_url = railway_domain.rstrip("/")
-        
+
         # Priority 2: Config File
         if not base_url:
             try:
@@ -382,16 +384,16 @@ def generate_compliance_doc(compliance_data_json: str) -> list[types.TextContent
                     base_url = config.get("public_url", "").rstrip("/")
             except Exception:
                 pass
-            
+
         download_path = f"/download/{output_filename}"
-        
+
         # Construct link
         if base_url:
              full_link = f"{base_url}{download_path}"
         else:
              # Fallback if config not set
              full_link = download_path
-        
+
         return [
             types.TextContent(
                 type="text",
@@ -419,6 +421,100 @@ NOTE: This link will be active for 24 hours. After that, the file will be automa
         ]
     except Exception as e:
         return [types.TextContent(type="text", text=f"Error generating document: {str(e)}")]
+
+
+@mcp.tool()
+def generate_source_report(source_citations_json: str, model_name: str = "model") -> list[types.TextContent | types.EmbeddedResource]:
+    """
+    Generate a PDF source citation report from validated JSON.
+
+    Validates the citation JSON against the schema, generates a formatted PDF report
+    showing each question's answer with its source, confidence level, and reasoning,
+    then returns a download link and the embedded PDF.
+
+    Args:
+        source_citations_json: JSON string with a "citations" array of citation objects
+        model_name: Optional model name for the filename (default: "model")
+
+    Returns:
+        List containing TextContent (download link) and EmbeddedResource (base64 PDF)
+    """
+    # Validate JSON
+    try:
+        report = validate_citation_json(source_citations_json)
+    except ValueError as e:
+        return [types.TextContent(type="text", text=f"Validation Error: {e}")]
+
+    # Generate PDF
+    try:
+        buffer = io.BytesIO()
+        generate_source_report_pdf(buffer, [c.model_dump() for c in report.citations])
+        pdf_bytes = buffer.getvalue()
+    except Exception as e:
+        return [types.TextContent(type="text", text=f"Error generating PDF: {str(e)}")]
+
+    # Build filename
+    safe_name = "".join(x for x in model_name if x.isalnum() or x in (' ', '_', '-')).strip().replace(' ', '_')
+    short_name = safe_name[:30]
+    random_suffix = uuid.uuid4().hex[:6]
+    filename = f"{short_name}_sources_{random_suffix}.pdf"
+
+    # Save to DATA_DIR
+    output_path = os.path.join(DATA_DIR, filename)
+    with open(output_path, "wb") as f:
+        f.write(pdf_bytes)
+
+    # Base64 encode
+    pdf_b64 = base64.b64encode(pdf_bytes).decode('utf-8')
+
+    # Build download URL
+    base_url = ""
+
+    # Priority 1: Environment Variable (Railway/Cloud)
+    railway_domain = os.environ.get("RAILWAY_PUBLIC_DOMAIN") or os.environ.get("RAILWAY_STATIC_URL")
+    if railway_domain:
+        if not railway_domain.startswith("http"):
+            railway_domain = f"https://{railway_domain}"
+        base_url = railway_domain.rstrip("/")
+
+    # Priority 2: Config File
+    if not base_url:
+        try:
+            with open("server_config.json", "r") as f:
+                config = json.load(f)
+                base_url = config.get("public_url", "").rstrip("/")
+        except Exception:
+            pass
+
+    download_path = f"/download/{filename}"
+
+    # Construct link
+    if base_url:
+        full_link = f"{base_url}{download_path}"
+    else:
+        # Fallback if config not set
+        full_link = download_path
+
+    return [
+        types.TextContent(
+            type="text",
+            text=f"""SUCCESS: Source citation report generated.
+
+DOWNLOAD LINK:
+[Download Source Report]({full_link})
+
+NOTE: This link will be active for 24 hours. After that, the file will be automatically deleted from the server.
+"""
+        ),
+        types.EmbeddedResource(
+            type="resource",
+            resource=types.BlobResourceContents(
+                blob=pdf_b64,
+                mimeType="application/pdf",
+                uri=f"file:///{filename}"
+            )
+        )
+    ]
 
 
 @mcp.resource("compliance-questions://")
