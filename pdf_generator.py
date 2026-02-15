@@ -27,6 +27,14 @@ from reportlab.pdfbase.ttfonts import TTFont
 FONT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'fonts')
 pdfmetrics.registerFont(TTFont('DejaVuSans', os.path.join(FONT_DIR, 'DejaVuSans.ttf')))
 
+# WCAG AA compliant confidence level colors (4.5:1+ contrast with black text)
+CONFIDENCE_COLORS = {
+    'DIRECT': colors.HexColor('#D4EDDA'),      # Light green
+    'INFERRED': colors.HexColor('#FFF3CD'),    # Light yellow
+    'DEFAULT': colors.HexColor('#E7E8EA'),     # Light gray
+    'NOT FOUND': colors.HexColor('#F8D7DA')    # Light red
+}
+
 
 def _escape_xml(text: str) -> str:
     """Escape XML special characters in text before embedding in Paragraph markup.
@@ -40,11 +48,76 @@ def _escape_xml(text: str) -> str:
     return html.escape(text)
 
 
-def generate_source_report_pdf(output_stream: BytesIO, citations: list[dict]) -> None:
+def _build_executive_summary(citations: list[dict], model_card_id: str):
+    """Build executive summary flowables showing confidence breakdown.
+
+    Args:
+        citations: List of citation dictionaries
+        model_card_id: Model card identifier string
+
+    Returns:
+        List of flowables (Paragraphs and Spacers) for executive summary section
+    """
+    from collections import Counter
+
+    # Define styles for summary
+    summary_header_style = ParagraphStyle(
+        'SummaryHeader',
+        fontName='DejaVuSans',
+        fontSize=14,
+        spaceAfter=8
+    )
+
+    summary_body_style = ParagraphStyle(
+        'SummaryBody',
+        fontName='DejaVuSans',
+        fontSize=10,
+        leading=14
+    )
+
+    flowables = []
+
+    # Add header
+    flowables.append(Paragraph("Executive Summary", summary_header_style))
+    flowables.append(Spacer(1, 0.1 * inch))
+
+    # Handle zero citations
+    if not citations:
+        flowables.append(Paragraph("No citations provided.", summary_body_style))
+        return flowables
+
+    # Count confidence levels
+    confidence_counts = Counter(c.get('confidence', 'UNKNOWN') for c in citations)
+    total = len(citations)
+
+    # Build summary text
+    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M')
+
+    summary_lines = [
+        f"<b>Model Card:</b> {_escape_xml(model_card_id)}",
+        f"<b>Generated:</b> {timestamp}",
+        f"<b>Total Questions:</b> {total}",
+        "",
+        "<b>Confidence Breakdown:</b>"
+    ]
+
+    # Add breakdown for each level
+    for level in ['DIRECT', 'INFERRED', 'DEFAULT', 'NOT FOUND']:
+        count = confidence_counts.get(level, 0)
+        percentage = (count / total * 100) if total > 0 else 0
+        summary_lines.append(f"  • {level}: {count} ({percentage:.1f}%)")
+
+    summary_text = "<br/>".join(summary_lines)
+    flowables.append(Paragraph(summary_text, summary_body_style))
+
+    return flowables
+
+
+def generate_source_report_pdf(output_stream: BytesIO, citations: list[dict], model_card_id: str = "unknown") -> None:
     """Generate a PDF citation report from validated citation data.
 
-    This function creates a multi-page PDF with a title, timestamp, and table of
-    citations. The table auto-wraps long text and repeats headers on each page.
+    This function creates a multi-page PDF with a title, timestamp, executive summary,
+    and table of citations. The table auto-wraps long text and repeats headers on each page.
     All text is rendered using DejaVu Sans font to support Unicode characters.
 
     Args:
@@ -52,6 +125,7 @@ def generate_source_report_pdf(output_stream: BytesIO, citations: list[dict]) ->
         citations: List of citation dictionaries (pre-validated by citation_schema)
                    Each citation should have: question_id, question_text, answer,
                    source_quote, source_section, confidence, reasoning
+        model_card_id: Model card identifier for footer and summary (default: "unknown")
 
     Returns:
         None. The PDF is written to output_stream. Caller is responsible for
@@ -64,16 +138,16 @@ def generate_source_report_pdf(output_stream: BytesIO, citations: list[dict]) ->
         >>> data = json.dumps({'citations': [{'question_id': 'Q1', ...}]})
         >>> report = validate_citation_json(data)
         >>> buf = BytesIO()
-        >>> generate_source_report_pdf(buf, [c.model_dump() for c in report.citations])
+        >>> generate_source_report_pdf(buf, [c.model_dump() for c in report.citations], model_card_id='meta-llama/Llama-3.1')
         >>> buf.seek(0)
         >>> pdf_bytes = buf.read()
     """
-    # Create document with margins
+    # Create document with margins (increased bottom margin for footer)
     doc = SimpleDocTemplate(
         output_stream,
         pagesize=letter,
         topMargin=0.5 * inch,
-        bottomMargin=0.5 * inch,
+        bottomMargin=0.75 * inch,
         leftMargin=0.5 * inch,
         rightMargin=0.5 * inch
     )
@@ -121,22 +195,56 @@ def generate_source_report_pdf(output_stream: BytesIO, citations: list[dict]) ->
     # Add spacer
     story.append(Spacer(1, 0.3 * inch))
 
+    # Add executive summary
+    summary_flowables = _build_executive_summary(citations, model_card_id)
+    story.extend(summary_flowables)
+
+    # Add spacer before table
+    story.append(Spacer(1, 0.3 * inch))
+
     # Build table data
-    # Header row
-    headers = ['#', 'Question', 'Answer', 'Source Quote', 'Section', 'Confidence', 'Reasoning']
+    # Header row - updated to reflect new content structure
+    headers = ['#', 'Question', 'Answer', 'Source/Details', 'Section', 'Confidence', 'Reasoning']
     header_row = [Paragraph(_escape_xml(h), header_text_style) for h in headers]
 
     # Data rows
     table_data = [header_row]
-    for idx, citation in enumerate(citations, start=1):
+    for citation in citations:
+        confidence = citation.get('confidence', '')
+        question_id = citation.get('question_id', '')
+        question_text = citation.get('question_text', '')
+        answer = citation.get('answer', '')
+        source_quote = citation.get('source_quote', '')
+        source_section = citation.get('source_section', '')
+        reasoning = citation.get('reasoning', '')
+
+        # Format Source/Details column based on confidence level
+        if confidence == 'DIRECT':
+            source_details = f"<i>{_escape_xml(source_quote)}</i><br/><br/>Section: {_escape_xml(source_section)}"
+        elif confidence == 'INFERRED':
+            source_details = f"Related: <i>{_escape_xml(source_quote)}</i><br/><br/>Reasoning: {_escape_xml(reasoning)}"
+        elif confidence == 'DEFAULT':
+            source_details = f"Standard value applied.<br/><br/>Rationale: {_escape_xml(reasoning)}"
+        elif confidence == 'NOT FOUND':
+            source_details = f"Information not found.<br/><br/>Searched: {_escape_xml(reasoning)}"
+        else:
+            # Fallback for unknown confidence levels
+            source_details = _escape_xml(source_quote)
+
+        # Format section column (dash for DEFAULT/NOT FOUND)
+        if confidence in ['DEFAULT', 'NOT FOUND']:
+            section_display = '-'
+        else:
+            section_display = source_section
+
         row = [
-            Paragraph(_escape_xml(str(idx)), cell_text_style),
-            Paragraph(_escape_xml(citation.get('question_text', '')), cell_text_style),
-            Paragraph(_escape_xml(citation.get('answer', '')), cell_text_style),
-            Paragraph(_escape_xml(citation.get('source_quote', '')), cell_text_style),
-            Paragraph(_escape_xml(citation.get('source_section', '')), cell_text_style),
-            Paragraph(_escape_xml(citation.get('confidence', '')), cell_text_style),
-            Paragraph(_escape_xml(citation.get('reasoning', '')), cell_text_style),
+            Paragraph(_escape_xml(question_id), cell_text_style),
+            Paragraph(_escape_xml(question_text), cell_text_style),
+            Paragraph(_escape_xml(answer), cell_text_style),
+            Paragraph(source_details, cell_text_style),
+            Paragraph(_escape_xml(section_display), cell_text_style),
+            Paragraph(_escape_xml(confidence), cell_text_style),
+            Paragraph(_escape_xml(reasoning), cell_text_style),
         ]
         table_data.append(row)
 
@@ -153,8 +261,8 @@ def generate_source_report_pdf(output_stream: BytesIO, citations: list[dict]) ->
 
     table = Table(table_data, colWidths=col_widths, repeatRows=1, splitByRow=True)
 
-    # Apply table style
-    table.setStyle(TableStyle([
+    # Apply base table style
+    style_commands = [
         # Header row styling
         ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#4A5568')),  # Dark grey
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
@@ -163,7 +271,6 @@ def generate_source_report_pdf(output_stream: BytesIO, citations: list[dict]) ->
 
         # Data rows styling
         ('BACKGROUND', (0, 1), (-1, -1), colors.white),
-        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F7FAFC')]),  # Alternating
         ('VALIGN', (0, 1), (-1, -1), 'TOP'),
         ('ALIGN', (0, 1), (-1, -1), 'LEFT'),
 
@@ -175,7 +282,17 @@ def generate_source_report_pdf(output_stream: BytesIO, citations: list[dict]) ->
         ('RIGHTPADDING', (0, 0), (-1, -1), 4),
         ('TOPPADDING', (0, 0), (-1, -1), 4),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
-    ]))
+    ]
+
+    # Apply confidence-based row colors
+    for idx, citation in enumerate(citations, start=1):
+        confidence = citation.get('confidence', '')
+        if confidence in CONFIDENCE_COLORS:
+            bg_color = CONFIDENCE_COLORS[confidence]
+            # Row index in table_data is idx (because header is row 0)
+            style_commands.append(('BACKGROUND', (0, idx), (-1, idx), bg_color))
+
+    table.setStyle(TableStyle(style_commands))
 
     story.append(table)
 
