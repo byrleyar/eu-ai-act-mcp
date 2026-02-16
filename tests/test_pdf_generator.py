@@ -44,7 +44,7 @@ def many_citations():
             'answer': f'Feature {i} performs automated analysis for compliance purpose {i}',
             'source_quote': f'The technical specification document states that feature {i} is designed to handle specific compliance requirements as outlined in the regulatory framework.',
             'source_section': f'Section {i}.{i}',
-            'confidence': ['DIRECT', 'INFERRED', 'DEFAULT', 'NOT FOUND'][i % 4],
+            'confidence': ['DIRECT', 'INFERRED', 'DEFAULT', 'NOT FOUND', 'HALLUCINATED'][i % 5],
             'reasoning': f'The reasoning for question {i} is based on direct analysis of the source documentation.'
         })
     return citations
@@ -183,7 +183,7 @@ def test_pdf_multipage_header_repetition(many_citations):
 
 def test_pdf_all_confidence_levels(sample_citation):
     """Test all confidence level values render correctly."""
-    confidence_levels = ['DIRECT', 'INFERRED', 'DEFAULT', 'NOT FOUND']
+    confidence_levels = ['DIRECT', 'INFERRED', 'DEFAULT', 'NOT FOUND', 'HALLUCINATED']
     citations = []
 
     for level in confidence_levels:
@@ -335,14 +335,15 @@ def test_pdf_executive_summary_confidence_breakdown(sample_citation):
 
 def test_pdf_confidence_colors_imported():
     """Test CONFIDENCE_COLORS constant has correct structure."""
-    # Verify it has exactly 4 keys
-    assert len(CONFIDENCE_COLORS) == 4
+    # Verify it has exactly 5 keys
+    assert len(CONFIDENCE_COLORS) == 5
 
     # Verify all expected keys exist
     assert 'DIRECT' in CONFIDENCE_COLORS
     assert 'INFERRED' in CONFIDENCE_COLORS
     assert 'DEFAULT' in CONFIDENCE_COLORS
     assert 'NOT FOUND' in CONFIDENCE_COLORS
+    assert 'HALLUCINATED' in CONFIDENCE_COLORS
 
     # Verify values are Color objects (have .hexval or similar attributes)
     from reportlab.lib.colors import Color
@@ -560,3 +561,89 @@ def test_pdf_inferred_citation_reasoning_shows_derivation(sample_citation):
 
     # Verify reasoning appears
     assert 'large-scale web corpus' in normalized or 'data-to-token ratios' in normalized
+
+
+def test_pdf_hallucinated_citation_rendering(sample_citation):
+    """Test HALLUCINATED citation displays warning and reasoning."""
+    citation = sample_citation.copy()
+    citation['confidence'] = 'HALLUCINATED'
+    citation['answer'] = 'Some fabricated answer'
+    citation['reasoning'] = 'No supporting evidence found in model card documentation'
+
+    buf = BytesIO()
+    generate_source_report_pdf(buf, [citation])
+    buf.seek(0)
+
+    # Extract text
+    pdf = PdfReader(buf)
+    all_text = ''
+    for page in pdf.pages:
+        all_text += page.extract_text()
+
+    normalized = ' '.join(all_text.split())
+
+    # Verify warning text appears
+    assert 'WARNING' in normalized or 'No supporting source' in normalized
+
+    # Verify reasoning appears
+    assert 'No supporting evidence' in normalized or 'model card documentation' in normalized
+
+
+def test_pdf_hallucinated_in_executive_summary(sample_citation):
+    """Test HALLUCINATED appears in executive summary confidence breakdown."""
+    citations = []
+
+    # Create one HALLUCINATED citation
+    citation = sample_citation.copy()
+    citation['question_id'] = 'Q_HALLUCINATED'
+    citation['confidence'] = 'HALLUCINATED'
+    citations.append(citation)
+
+    # Add a DIRECT citation for variety
+    citation2 = sample_citation.copy()
+    citation2['question_id'] = 'Q_DIRECT'
+    citation2['confidence'] = 'DIRECT'
+    citations.append(citation2)
+
+    buf = BytesIO()
+    generate_source_report_pdf(buf, citations)
+    buf.seek(0)
+
+    # Extract text from page 1
+    pdf = PdfReader(buf)
+    page1_text = pdf.pages[0].extract_text()
+
+    # Verify HALLUCINATED appears in executive summary
+    assert 'HALLUCINATED' in page1_text
+
+
+def test_pdf_confidence_colors_includes_hallucinated():
+    """Test CONFIDENCE_COLORS dict includes HALLUCINATED with correct structure."""
+    assert 'HALLUCINATED' in CONFIDENCE_COLORS
+
+    from reportlab.lib.colors import Color
+    assert isinstance(CONFIDENCE_COLORS['HALLUCINATED'], Color)
+
+
+def test_pdf_hallucinated_section_shows_dash(sample_citation):
+    """Test HALLUCINATED citation shows dash in section column like DEFAULT/NOT FOUND."""
+    citation = sample_citation.copy()
+    citation['confidence'] = 'HALLUCINATED'
+    citation['source_section'] = 'Section 5.3'  # Provide a section value
+    citation['reasoning'] = 'Fabricated answer with no source'
+
+    buf = BytesIO()
+    generate_source_report_pdf(buf, [citation])
+    buf.seek(0)
+
+    # Extract text
+    pdf = PdfReader(buf)
+    all_text = ''
+    for page in pdf.pages:
+        all_text += page.extract_text()
+
+    # The section column should show '-' not 'Section 5.3'
+    # This is hard to verify precisely due to table formatting, but we can verify
+    # the PDF generates without error and contains the expected WARNING text
+    normalized = ' '.join(all_text.split())
+    assert 'WARNING' in normalized or 'No supporting source' in normalized

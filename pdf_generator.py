@@ -34,7 +34,8 @@ CONFIDENCE_COLORS = {
     'DIRECT': colors.HexColor('#D4EDDA'),      # Light green
     'INFERRED': colors.HexColor('#FFF3CD'),    # Light yellow
     'DEFAULT': colors.HexColor('#E7E8EA'),     # Light gray
-    'NOT FOUND': colors.HexColor('#F8D7DA')    # Light red
+    'NOT FOUND': colors.HexColor('#F8D7DA'),   # Light red
+    'HALLUCINATED': colors.HexColor('#FF0000')  # Pure red
 }
 
 
@@ -134,7 +135,7 @@ def _build_executive_summary(citations: list[dict], model_card_id: str):
     ]
 
     # Add breakdown for each level
-    for level in ['DIRECT', 'INFERRED', 'DEFAULT', 'NOT FOUND']:
+    for level in ['DIRECT', 'INFERRED', 'DEFAULT', 'NOT FOUND', 'HALLUCINATED']:
         count = confidence_counts.get(level, 0)
         percentage = (count / total * 100) if total > 0 else 0
         summary_lines.append(f"  • {level}: {count} ({percentage:.1f}%)")
@@ -265,12 +266,14 @@ def generate_source_report_pdf(output_stream: BytesIO, citations: list[dict], mo
             source_details = f"Standard value applied.<br/><br/>Rationale: {_escape_xml(reasoning)}"
         elif confidence == 'NOT FOUND':
             source_details = f"Information not found.<br/><br/>Searched: {_escape_xml(reasoning)}"
+        elif confidence == 'HALLUCINATED':
+            source_details = f"<b>WARNING: No supporting source found.</b><br/><br/>Reasoning: {_escape_xml(reasoning)}"
         else:
             # Fallback for unknown confidence levels
             source_details = _escape_xml(source_quote)
 
-        # Format section column (dash for DEFAULT/NOT FOUND)
-        if confidence in ['DEFAULT', 'NOT FOUND']:
+        # Format section column (dash for DEFAULT/NOT FOUND/HALLUCINATED)
+        if confidence in ['DEFAULT', 'NOT FOUND', 'HALLUCINATED']:
             section_display = '-'
         else:
             section_display = source_section
