@@ -17,17 +17,21 @@ This custom MCP server automates the generation of EU AI Act compliance document
 
 ## Features
 - **Fetch Model Cards**: Extracts metadata from Hugging Face model cards.
-- **Deep Link Analysis**: Automatically follows external links (e.g., Arxiv papers, GitHub PDFs) to gather technical details not present in the main model card.
-- **Source Transparency**: Explicitly lists all data sources used (Model Card, PDF Paper, etc.) in the final output.
-- **Generate Compliance Docs**: Generates a downloadable `.docx` file filled with compliance data.
-- **Context Awareness**: Allows defining custom context for the LLM via `context.md`.
-- **Customizable**: Adjustable `questions.json` and templates.
+- **Agentic Retrieval**: Proactively discovers technical documents (Arxiv, GitHub PDFs, Repo Files) and selectively fetches them to fill identified data gaps.
+- **Source Citation Reports (PDF)**: Generates a companion audit report showing the exact source, quote, and confidence level for every compliance answer.
+- **Hallucination Detection**: Automatically audits answers against sources, flagging fabricated claims with bold red visual warnings in the PDF.
+- **Generate Compliance Docs**: Generates a downloadable `.docx` file using official EU templates.
+- **Context Awareness**: Enforces a strict investigative protocol via `context.md`.
+- **Full Coverage**: Ensures all 80+ compliance questions are addressed or documented as missing.
 
 ## How It Works
-1.  **Data Retrieval**: Claude pulls the model card from Hugging Face. If the card links to a "Paper", "Technical Report", or "Arxiv" PDF, the server automatically downloads and extracts that text too.
-2.  **Compliance Questions**: Claude retrieves the official EU AI Act compliance questions from the MCP server.
-2.  **Processing**: Claude answers the questions for the compliance form based on the model card's extracted information.
-3.  **Generation**: The data is input into the `.docx` compliance form template for you to download.
+1.  **Discovery**: Claude pulls the model card and identifies all linked papers, technical reports, and repository files.
+2.  **Gap Analysis**: Claude compares the fetched card against the 80+ compliance requirements to identify missing information.
+3.  **Targeted Fetch**: Claude proactively fetches and parses specific documents (e.g., an arXiv paper) to fill identified gaps.
+4.  **Self-Audit**: Claude re-verifies its answers against all gathered sources, assigning confidence levels (DIRECT, INFERRED, etc.) and flagging hallucinations.
+5.  **Generation**: The server generates two core deliverables:
+    - **DOCX**: The official compliance document.
+    - **PDF**: A source citation report tracking the provenance of every answer.
 
 ## How To Use
 1.  **Add Custom Connector**: (See "Try it now" tip above or Server Setup below).
@@ -104,7 +108,8 @@ This project is ready for one-click deployment on Railway.
     -   Create a **Volume** in Railway.
     -   Mount it to `/app/generated_docs`.
     -   Add an Environment Variable: `RAILWAY_VOLUME_MOUNT_PATH=/app/generated_docs`.
-    -   This ensures your generated DOCX files persist across restarts.
+        - This ensures your generated DOCX and PDF files persist across restarts.
+    
 
 ## Troubleshooting
 
