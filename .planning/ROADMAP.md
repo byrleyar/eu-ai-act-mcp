@@ -22,7 +22,7 @@ See [v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md) for full details.
 
 **Milestone Goal:** Make source citation reports trustworthy by ensuring full coverage, detecting hallucinations, and automating the generation flow.
 
-- [ ] **Phase 4: Hallucination Detection** - Schema and PDF rendering for the HALLUCINATED confidence level
+- [x] **Phase 4: Hallucination Detection** - Schema and PDF rendering for the HALLUCINATED confidence level -- completed 2026-02-16
 - [ ] **Phase 5: Coverage Enforcement** - Validate all 80 questions are present in source reports
 - [ ] **Phase 6: Workflow & Instructions** - context.md overhaul for self-verification, coverage, and automation
 
@@ -40,7 +40,7 @@ See [v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md) for full details.
 **Plans:** 1 plan
 
 Plans:
-- [ ] 04-01-PLAN.md -- Add HALLUCINATED confidence level to schema, PDF rendering, executive summary, and tests
+- [x] 04-01-PLAN.md -- Add HALLUCINATED confidence level to schema, PDF rendering, executive summary, and tests
 
 ### Phase 5: Coverage Enforcement
 **Goal**: The generate_source_report tool guarantees every question in questions.json has a citation entry, rejecting incomplete reports
@@ -79,10 +79,10 @@ Plans:
 | 1. PDF Infrastructure & Data Model | v1.1 | 2/2 | Complete | 2026-02-15 |
 | 2. MCP Tool Integration & File Management | v1.1 | 2/2 | Complete | 2026-02-15 |
 | 3. Citation Features & Workflow | v1.1 | 4/4 | Complete | 2026-02-15 |
-| 4. Hallucination Detection | v1.2 | 0/1 | Planned | - |
+| 4. Hallucination Detection | v1.2 | 1/1 | Complete | 2026-02-16 |
 | 5. Coverage Enforcement | v1.2 | 0/? | Not started | - |
 | 6. Workflow & Instructions | v1.2 | 0/? | Not started | - |
 
 ---
 *Roadmap created: 2026-02-15*
-*Last updated: 2026-02-16 after Phase 4 planned*
+*Last updated: 2026-02-16 after Phase 4 completed*
