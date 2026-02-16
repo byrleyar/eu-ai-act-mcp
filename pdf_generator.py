@@ -261,7 +261,12 @@ def generate_source_report_pdf(output_stream: BytesIO, citations: list[dict], mo
             source_parts.append(f"Section: {_escape_xml(source_section)}")
             source_details = "<br/>".join(source_parts)
         elif confidence == 'INFERRED':
-            source_details = f"Related: <i>{_escape_xml(source_quote)}</i><br/><br/>Reasoning: {_escape_xml(reasoning)}"
+            source_parts = [f"Related: <i>{_escape_xml(source_quote)}</i>"]
+            if source_document:
+                source_parts.append(f"Document: {_escape_xml(source_document)}")
+            source_parts.append(f"Section: {_escape_xml(source_section)}")
+            source_parts.append(f"Reasoning: {_escape_xml(reasoning)}")
+            source_details = "<br/>".join(source_parts)
         elif confidence == 'DEFAULT':
             source_details = f"Standard value applied.<br/><br/>Rationale: {_escape_xml(reasoning)}"
         elif confidence == 'NOT FOUND':
@@ -291,13 +296,13 @@ def generate_source_report_pdf(output_stream: BytesIO, citations: list[dict], mo
 
     # Create table with column widths
     col_widths = [
-        0.7 * inch,  # # (9% of width - supports 17-21 char question IDs)
-        1.2 * inch,  # Question (16%)
-        1.3 * inch,  # Answer (17%)
-        1.8 * inch,  # Source Quote (24%)
-        0.5 * inch,  # Section (7% - shorter refs like "Architecture")
-        0.8 * inch,  # Confidence (11% - unchanged, fits "INFERRED")
-        1.2 * inch,  # Reasoning (16%)
+        0.7 * inch,   # #
+        1.2 * inch,   # Question
+        1.3 * inch,   # Answer
+        1.55 * inch,  # Source/Details
+        0.8 * inch,   # Section (widened to prevent header wrapping)
+        1.0 * inch,   # Confidence (widened to prevent header wrapping)
+        0.95 * inch,  # Reasoning
     ]
 
     table = Table(table_data, colWidths=col_widths, repeatRows=1, splitByRow=True)
