@@ -2,7 +2,7 @@ from mcp.server.fastmcp import FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
 import os
 import json
-from huggingface_hub import ModelCard
+from huggingface_hub import ModelCard, list_repo_files
 from huggingface_hub.utils import EntryNotFoundError, RepositoryNotFoundError
 from docx_generator import fill_template
 from citation_schema import validate_citation_json, validate_report_coverage
@@ -15,16 +15,18 @@ import base64
 import uuid
 import requests
 import re
+import ipaddress
+from urllib.parse import urlparse
 from pypdf import PdfReader
+
+import time
+import threading
 
 # Initialize FastMCP server with DNS Rebinding Protection DISABLED
 
 # This fixes "Invalid Host Header" errors on Railway/Ngrok/Localhost without strict host updates
 security_settings = TransportSecuritySettings(enable_dns_rebinding_protection=False)
 mcp = FastMCP("EU AI Act Compliance Server", transport_security=security_settings)
-
-import time
-import threading
 
 # --- storage configuration ---
 # Use Railway volume if available, else default to 'generated_docs' in current dir
@@ -72,55 +74,211 @@ cleanup_thread = threading.Thread(target=cleanup_old_files, daemon=True)
 cleanup_thread.start()
 
 
-def fetch_extra_info(url: str) -> str:
+def is_safe_url(url: str) -> bool:
     """
-    Helper to fetch content from external URLs (PDFs or HF Model Cards).
+    Validates that a URL is absolute, uses http/https, and does not point to private IPs.
     """
-    # Special handling for Arxiv: Convert /abs/ to /pdf/
+    try:
+        parsed = urlparse(url)
+        if parsed.scheme not in ('http', 'https'):
+            return False
+        if not parsed.netloc:
+            return False
+        
+        # Prevent SSRF by blocking private IP ranges
+        # Note: This is a basic check. In production, we might want to resolve DNS
+        # and check the IP, but for this MCP server, we'll start with host checks.
+        host = parsed.hostname
+        if not host:
+            return False
+            
+        # Common private/local patterns
+        if host.lower() in ('localhost', '127.0.0.1', '0.0.0.0', '::1'):
+            return False
+            
+        # Check if it's an IP and if so, if it's private
+        try:
+            ip = ipaddress.ip_address(host)
+            if ip.is_private or ip.is_loopback or ip.is_link_local:
+                return False
+        except ValueError:
+            # Not an IP address, likely a domain name
+            pass
+            
+        return True
+    except Exception:
+        return False
+
+
+def transform_arxiv_url(url: str) -> str:
+    """
+    Converts arXiv abstract links to direct PDF links.
+    """
     if "arxiv.org/abs/" in url:
         url = url.replace("arxiv.org/abs/", "arxiv.org/pdf/")
         if not url.endswith(".pdf"):
             url += ".pdf"
-        print(f"DEBUG: Converted Arxiv abstract link to PDF: {url}")
+    return url
 
-    print(f"DEBUG: Attempting to fetch extra info from {url}")
+
+def discover_relevant_links(text: str, repo_id: str) -> list[dict]:
+    """
+    Scans model card text and repository for relevant technical documents.
+    Returns a list of discovered links with context.
+    """
+    discovered = []
+    
+    # 1. Repo Files (PDFs)
     try:
-        # Stream request to check headers first
+        files = list_repo_files(repo_id)
+        for f in files:
+            if f.lower().endswith('.pdf'):
+                # Construct absolute URL for HF file
+                url = f"https://huggingface.co/{repo_id}/resolve/main/{f}"
+                discovered.append({
+                    "url": url,
+                    "label": f"Repository File: {f}",
+                    "type": "repository_file",
+                    "context": "Found in repository file list"
+                })
+    except Exception as e:
+        print(f"DEBUG: Failed to list repo files: {e}")
+
+    # 2. Markdown/HTML Links
+    # Regex for markdown links: [Label](URL)
+    md_links = re.finditer(r"(?<!\!)\[([^\]]+)\]\((https?://[^\)]+)\)", text)
+    for match in md_links:
+        label, url = match.groups()
+        start, end = match.span()
+        # Capture context (100 chars before/after)
+        context_start = max(0, start - 100)
+        context_end = min(len(text), end + 100)
+        context = text[context_start:context_end].replace('\n', ' ').strip()
+        
+        discovered.append({
+            "url": url,
+            "label": label,
+            "type": "markdown_link",
+            "context": context
+        })
+
+    # Regex for HTML links: <a href="URL">Label</a>
+    html_links = re.finditer(r'<a\s+(?:[^>]*?\s+)?href="([^"]*)"[^>]*>(.*?)</a>', text, re.IGNORECASE | re.DOTALL)
+    for match in html_links:
+        url, label = match.groups()
+        start, end = match.span()
+        context_start = max(0, start - 100)
+        context_end = min(len(text), end + 100)
+        context = text[context_start:context_end].replace('\n', ' ').strip()
+        
+        discovered.append({
+            "url": url,
+            "label": label,
+            "type": "html_link",
+            "context": context
+        })
+
+    # 3. BibTeX / ArXiv extraction
+    # Look for arxiv.org/abs/ or /pdf/ pattern in text generally if missed by link regex
+    arxiv_matches = re.finditer(r'(https?://(?:www\.)?arxiv\.org/(?:abs|pdf)/\d+\.\d+)', text)
+    for match in arxiv_matches:
+        url = match.group(1)
+        # Check if already added
+        if any(d['url'] == url for d in discovered):
+            continue
+            
+        start, end = match.span()
+        context_start = max(0, start - 100)
+        context_end = min(len(text), end + 100)
+        context = text[context_start:context_end].replace('\n', ' ').strip()
+        
+        discovered.append({
+            "url": url,
+            "label": "ArXiv Paper",
+            "type": "citation",
+            "context": context
+        })
+
+    return discovered
+
+@mcp.tool()
+def fetch_hf_model_card(model_id: str) -> str:
+    """
+    Fetches the raw text/markdown of a model card from HuggingFace.
+    Returns the content AND a checklist of discovered technical documents/links.
+    Does NOT automatically fetch external content (use `fetch_external_document` for that).
+    """
+    try:
+        card = ModelCard.load(model_id)
+        original_text = card.text
+        
+        # Discover links without fetching
+        links = discover_relevant_links(original_text, model_id)
+        
+        # Filter duplicates based on URL
+        unique_links = {l['url']: l for l in links}.values()
+        
+        # Format the output
+        links_json = json.dumps(list(unique_links), indent=2)
+        
+        full_response = f"""
+{'='*40}
+MODEL CARD CONTENT ({model_id}):
+{'='*40}
+
+{original_text}
+
+{'='*40}
+### DISCOVERED DOCUMENTS (Use `fetch_external_document` to retrieve relevant ones)
+{'='*40}
+{links_json}
+"""
+        return full_response
+        
+    except (RepositoryNotFoundError, EntryNotFoundError) as e:
+        return f"Error: Model or model card not found for ID '{model_id}'. Details: {str(e)}"
+    except Exception as e:
+        return f"Error fetching model card: {str(e)}"
+
+
+@mcp.tool()
+def fetch_external_document(url: str) -> str:
+    """
+    Retrieves and extracts text from an external document (PDF or HTML).
+    Use this to gather information from papers or technical reports discovered in the model card.
+    """
+    if not is_safe_url(url):
+        return f"Error: URL '{url}' is unsafe or prohibited."
+
+    # Handle arXiv conversion
+    fetch_url = transform_arxiv_url(url)
+    
+    print(f"DEBUG: Attempting to fetch document from {fetch_url}")
+    try:
         headers = {"User-Agent": "Mozilla/5.0 (Compliance-Bot/1.0)"}
-        response = requests.get(url, stream=True, timeout=10, headers=headers)
+        # Stream to check size and content type first
+        response = requests.get(fetch_url, stream=True, timeout=15, headers=headers)
         response.raise_for_status()
         
         content_type = response.headers.get("Content-Type", "").lower()
         content_length = int(response.headers.get("Content-Length", 0))
         
-        # Safety: Don't download huge files > 10MB
+        # Max 10MB
         if content_length > 10 * 1024 * 1024:
-            return f"\n[Skipped link {url}: File too large ({content_length} bytes)]"
+            return f"Error: File at {url} is too large ({content_length} bytes). Max 10MB."
             
         extracted_text = ""
-        source_type = "External Link"
+        source_type = "External Document"
 
-        # CASE 1: PDF
-        # Handle GitHub blob links by converting to raw
-        if "github.com" in url and "/blob/" in url and url.lower().endswith(".pdf"):
-             url = url.replace("github.com", "raw.githubusercontent.com").replace("/blob/", "/")
-             print(f"DEBUG: Converted GitHub blob link to raw: {url}")
-             # Re-request with new URL
-             try:
-                 response = requests.get(url, stream=True, timeout=10, headers=headers)
-                 response.raise_for_status()
-                 content_type = response.headers.get("Content-Type", "").lower()
-             except Exception as e:
-                 return f"\n[Error fetching raw PDF from {url}: {e}]"
-
-        if "application/pdf" in content_type or url.lower().endswith(".pdf"):
-            source_type = "PDF Paper"
+        if "application/pdf" in content_type or fetch_url.lower().endswith(".pdf"):
+            source_type = "PDF Document"
             f = io.BytesIO()
+            # Read chunks to respect stream
             for chunk in response.iter_content(chunk_size=8192):
                 f.write(chunk)
             
             reader = PdfReader(f)
-            # Limit to first 15 pages to save context
+            # Limit to first 15 pages
             pages_text = []
             for i, page in enumerate(reader.pages):
                 if i >= 15: break
@@ -128,125 +286,32 @@ def fetch_extra_info(url: str) -> str:
                 if text:
                     pages_text.append(text)
             extracted_text = "\n".join(pages_text)
+        else:
+            # Assume HTML/Text
+            source_type = "Web Page"
+            # Limit to 50k chars for raw text
+            extracted_text = response.text[:50000]
+            if len(response.text) > 50000:
+                extracted_text += "\n[... Content Truncated ...]"
 
-        # CASE 2: Hugging Face Model Card (recursion)
-        elif "huggingface.co" in url and "resolve" not in url:
-            # Attempt to pattern match a model ID
-            # e.g. https://huggingface.co/mistralai/Mistral-7B-v0.1
-            match = re.search(r"huggingface\.co/([^/]+/[^/]+)", url)
-            if match:
-                linked_model_id = match.group(1)
-                # Avoid self-ref
-                source_type = f"Linked Model Card ({linked_model_id})"
-                try:
-                    linked_card = ModelCard.load(linked_model_id)
-                    extracted_text = linked_card.text
-                except Exception:
-                    pass
+        if not extracted_text.strip():
+            return f"Error: Could not extract any text from {url}."
 
-        if extracted_text:
-            # Truncate to reasonable length (e.g. 12k chars)
-            truncated_text = extracted_text[:12000]
-            if len(extracted_text) > 12000:
-                truncated_text += "\n[... Content Truncated ...]"
-            
-            return f"\n\n{'='*20}\nEXTRA CONTEXT FETCHED FROM: {source_type}\nURL: {url}\n{'='*20}\n{truncated_text}\n"
+        # Format response
+        full_response = f"""
+{'='*20}
+SOURCE: {source_type}
+URL: {url}
+{'='*20}
+
+{extracted_text}
+"""
+        return full_response
 
     except Exception as e:
         print(f"DEBUG: Failed to fetch {url}: {e}")
-        return f"\n[Error fetching info from {url}: {str(e)}]"
+        return f"Error fetching document from {url}: {str(e)}"
 
-    return ""
-
-def extract_and_enrich_model_card(text: str) -> tuple[str, list[str]]:
-    """
-    Scans for relevant links in the model card and fetches their content.
-    Returns a tuple of (enriched_text, list_of_sources).
-    """
-    # Regex for markdown links: [Label](URL)
-    md_links = re.findall(r"(?<!\!)\[([^\]]+)\]\((https?://[^\)]+)\)", text)
-    
-    # Regex for HTML links: <a href="URL">Label</a>
-    # Note: Capture groups are (URL, Label)
-    html_links = re.findall(r'<a\s+(?:[^>]*?\s+)?href="([^"]*)"[^>]*>(.*?)</a>', text, re.IGNORECASE | re.DOTALL)
-    
-    # Normalize html links to (Label, URL) and combine
-    all_links = md_links + [(label, url) for url, label in html_links]
-    
-    # Priority keywords that suggest high info density
-    relevant_keywords = [
-        "paper", "arxiv", "technical report", "model card", "whitepaper", 
-        "specification", "datasheet", "documentation", "full details"
-    ]
-    
-    # Negative keywords to skip waste
-    skip_keywords = [
-        "license", "bounty", "grant", "donation", "citation", "bibtex", 
-        "join", "discord", "twitter", "community", "badge", "deploy",
-        "colab", "demo"
-    ]
-    
-    enrichment_text = ""
-    fetched_urls = set()
-    fetch_count = 0
-    MAX_FETCHES = 2  # "one or two links down"
-    
-    for label, url in all_links:
-        if fetch_count >= MAX_FETCHES:
-            break
-            
-        if url in fetched_urls:
-            continue
-            
-        label_lower = label.lower()
-        url_lower = url.lower()
-        
-        # DECISION LOGIC:
-        # 1. Must contain relevant keyword
-        # 2. Must NOT contain skip keyword
-        # 3. OR be a direct PDF link (very high signal)
-        
-        is_relevant = any(k in label_lower for k in relevant_keywords)
-        is_garbage = any(k in label_lower for k in skip_keywords)
-        is_pdf = url_lower.endswith(".pdf") or "arxiv.org/pdf" in url_lower
-        
-        if (is_relevant or is_pdf) and not is_garbage:
-            fetched_urls.add(url)
-            enrichment_text += fetch_extra_info(url)
-            fetch_count += 1
-            
-    return enrichment_text, list(fetched_urls)
-
-@mcp.tool()
-def fetch_hf_model_card(model_id: str) -> str:
-    """
-    Fetches the raw text/markdown of a model card from HuggingFace.
-    Automatically follows 1-2 important links (like Arxiv papers or linked model cards) to gather more context.
-    Returns the content with a header explicitly listing the sources used.
-    """
-    try:
-        card = ModelCard.load(model_id)
-        original_text = card.text
-        
-        # Enrich the content by following relevant links
-        extra_info, sources = extract_and_enrich_model_card(original_text)
-        
-        # Construct Source Summary
-        if not sources:
-            source_summary = f"SOURCES USED:\n1. Hugging Face Model Card for '{model_id}' (Primary)\n   - No additional relevant links found or followed."
-        else:
-            source_list = [f"1. Hugging Face Model Card for '{model_id}' (Primary)"]
-            for i, src in enumerate(sources, 2):
-                source_list.append(f"{i}. External Link: {src}")
-            source_summary = "SOURCES USED:\n" + "\n".join(source_list)
-
-        full_response = f"{source_summary}\n\n{'='*40}\nMODEL CARD CONTENT:\n{'='*40}\n\n{original_text}\n{extra_info}\n\n*** MODEL CARD FETCHED SUCCESFULLY ***\nNEXT STEP: Call the `get_compliance_requirements` tool to retrieve the list of questions you need to answer based on this text."
-        return full_response
-        
-    except (RepositoryNotFoundError, EntryNotFoundError) as e:
-        return f"Error: Model or model card not found for ID '{model_id}'. Details: {str(e)}"
-    except Exception as e:
-        return f"Error fetching model card: {str(e)}"
 
 @mcp.tool()
 def get_compliance_requirements() -> str:
