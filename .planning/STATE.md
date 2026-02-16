@@ -1,41 +1,31 @@
 # Project State
 
 **Project:** EU AI Act Compliance MCP Server
-**Status:** Milestone v1.1 complete
-**Last Updated:** 2026-02-15
+**Status:** Milestone v1.2 -- roadmap created, ready to plan Phase 4
+**Last Updated:** 2026-02-16
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-02-15)
+See: .planning/PROJECT.md (updated 2026-02-16)
 
 **Core value:** Every answer in the compliance document must be traceable back to its source.
-**Current focus:** Planning next milestone — run `/gsd:new-milestone` to define requirements and roadmap.
+**Current focus:** v1.2 Source Report Reliability -- hallucination detection, coverage enforcement, workflow automation.
 
 ## Current Position
 
-**Milestone:** v1.1 Source Citation Reports — SHIPPED
-**Status:** Complete. All 3 phases (8 plans, 25 requirements) delivered and archived.
+**Milestone:** v1.2 Source Report Reliability
+**Phase:** 4 of 6 (Hallucination Detection) -- not started
+**Plan:** --
+**Status:** Ready to plan Phase 4
+Last activity: 2026-02-16 -- v1.2 roadmap created (Phases 4-6)
+
+Progress: [░░░░░░░░░░] 0% (v1.2)
 
 ## Performance Metrics
 
-**v1.1 Milestone:**
-- Phases completed: 3/3
-- Plans completed: 8/8
-- Requirements completed: 25/25
-- Tests: 57 passing
-- LOC: 2,279 Python
-- Timeline: 2026-02-15
-
-| Phase | Plan | Duration | Tasks | Files | Completed |
-|-------|------|----------|-------|-------|-----------|
-| 01    | 01   | 7min     | 2     | 4     | 2026-02-15 |
-| 01    | 02   | 4min     | 2     | 4     | 2026-02-15 |
-| 02    | 01   | 2min     | 2     | 1     | 2026-02-15 |
-| 02    | 02   | 2min     | 2     | 1     | 2026-02-15 |
-| 03    | 01   | 3min     | 2     | 2     | 2026-02-15 |
-| 03    | 02   | 2min     | 2     | 2     | 2026-02-15 |
-| 03    | 03   | 5min     | 2     | 6     | 2026-02-15 |
-| 03    | 04   | 2min     | 1     | 1     | 2026-02-15 |
+**v1.1 Milestone (archived):**
+- Phases: 3, Plans: 8, Requirements: 25/25
+- See .planning/MILESTONES.md
 
 ## Accumulated Context
 
@@ -45,36 +35,40 @@ See .planning/PROJECT.md Key Decisions table for full list with outcomes.
 
 ### Active TODOs
 
-None — milestone complete. Define next milestone with `/gsd:new-milestone`.
+- Plan and execute Phase 4 (Hallucination Detection)
 
 ### Known Blockers
 
 None.
 
+### Known Issues (from v1.1)
+
+- Claude does not reliably call `generate_source_report` after `generate_compliance_doc` (addressed by WORK-01 in Phase 6)
+- Source reports only cover ~26 of 50+ questions (addressed by COV-01/COV-02 in Phase 5)
+
 ## Session Continuity
 
 **For next session:**
 
-Run `/gsd:new-milestone` to start the next milestone cycle:
-- Define new requirements
-- Create roadmap with phases
-- Begin execution
+1. Plan Phase 4 with `/gsd:plan-phase 4`
+2. Execute Phase 4 plans
+3. Continue through Phase 5, Phase 6
 
 **Quick context:**
-- v1.1 shipped source citation PDF reports alongside existing DOCX compliance forms
-- 4 MCP tools: fetch_hf_model_card, get_compliance_requirements, generate_compliance_doc, generate_source_report
-- Next milestone phases will continue numbering from Phase 4+
+- v1.2 has 3 phases: Hallucination Detection (4), Coverage Enforcement (5), Workflow & Instructions (6)
+- 10 requirements across HALL, COV, WORK categories
+- Phase 4 is code changes (schema + PDF), Phase 5 is tool validation, Phase 6 is context.md
 
 ---
 
 ## Last Session
 
-**Timestamp:** 2026-02-15
-**Stopped at:** Milestone v1.1 archived and tagged
-**Next action:** `/gsd:new-milestone` for next development cycle
+**Timestamp:** 2026-02-16
+**Stopped at:** v1.2 roadmap created
+**Next action:** Plan Phase 4 with `/gsd:plan-phase 4`
 
 ---
 
 *State tracking for: EU AI Act Compliance MCP Server*
 *Created: 2026-02-15*
-*Last updated: 2026-02-15 after v1.1 milestone completion*
+*Last updated: 2026-02-16 after v1.2 roadmap created*

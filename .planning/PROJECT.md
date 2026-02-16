@@ -29,7 +29,18 @@ Every answer in the compliance document must be traceable back to its source —
 
 ### Active
 
-(None — define requirements for next milestone with `/gsd:new-milestone`)
+- [ ] HALLUCINATED confidence level — new 5th type for answers not supported by model card sources, with self-checking during source report generation
+- [ ] Automatic source report workflow — Claude must call `generate_source_report` immediately after `generate_compliance_doc`, presenting both links together
+- [ ] Full question coverage — every question in questions.json must appear in the source report, even if NOT FOUND
+
+## Current Milestone: v1.2 Source Report Reliability
+
+**Goal:** Make source citation reports trustworthy by ensuring full coverage, detecting hallucinations, and automating the generation flow.
+
+**Target features:**
+- HALLUCINATED confidence level with self-verification against model card
+- Automatic end-to-end workflow (compliance doc + source report together)
+- Mandatory citation for all 50+ compliance questions
 
 ### Out of Scope
 
@@ -57,6 +68,11 @@ Deployed on Railway with persistent volume storage.
 - **INFERRED** — Answer derived from related information (related quote(s) + reasoning chain)
 - **DEFAULT** — Standard/assumed value used (explains why default was appropriate)
 - **NOT FOUND** — Information not available in model card (documents what was searched for)
+- **HALLUCINATED** — Answer not supported by model card sources (flagged during self-check) *(v1.2)*
+
+**Known issues (v1.1):**
+- Claude does not reliably call `generate_source_report` after `generate_compliance_doc` despite context.md instructions
+- Source reports only cover ~26 of 50+ questions — incomplete coverage
 
 ## Constraints
 
@@ -80,4 +96,4 @@ Deployed on Railway with persistent volume storage.
 | 3-phase structure (merged scale testing) | 25 requirements extending existing system, 3 phases optimal delivery | Good — completed efficiently in single day |
 
 ---
-*Last updated: 2026-02-15 after v1.1 milestone*
+*Last updated: 2026-02-16 after v1.2 milestone started*
