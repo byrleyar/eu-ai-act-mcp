@@ -17,6 +17,7 @@ import os
 import base64
 import inspect
 import mimetypes
+from unittest.mock import patch, mock_open
 import pytest
 
 from server import generate_source_report, cleanup_old_files, DATA_DIR
@@ -24,40 +25,50 @@ from server import generate_source_report, cleanup_old_files, DATA_DIR
 
 # Test fixtures
 
-VALID_CITATION_JSON = json.dumps({
-    "citations": [{
-        "question_id": "Q1",
-        "question_text": "What is the model architecture?",
-        "answer": "Transformer-based",
-        "source_quote": "We use a standard Transformer",
-        "source_section": "Model Description",
-        "confidence": "DIRECT",
-        "reasoning": "Directly stated in model card"
-    }]
-})
+# Mock questions data that matches our test citations
+MOCK_QUESTIONS = json.dumps([
+    {"id": "Q1", "question": "Architecture?", "description": "desc"},
+    {"id": "Q2", "question": "Training?", "description": "desc"}
+])
 
-MULTI_CITATION_JSON = json.dumps({
+VALID_CITATION_JSON = json.dumps({
     "citations": [
         {
             "question_id": "Q1",
-            "question_text": "Architecture?",
-            "answer": "Transformer",
-            "source_quote": "Quote",
-            "source_section": "Section",
+            "question_text": "What is the model architecture?",
+            "answer": "Transformer-based",
+            "source_quote": "We use a standard Transformer",
+            "source_section": "Model Description",
             "confidence": "DIRECT",
-            "reasoning": "Direct match"
+            "reasoning": "Directly stated in model card"
         },
         {
             "question_id": "Q2",
             "question_text": "Training data?",
-            "answer": "",
+            "answer": "N/A",
             "source_quote": "",
             "source_section": "",
             "confidence": "NOT FOUND",
-            "reasoning": "Not found in card"
+            "reasoning": "Not found"
         }
     ]
 })
+
+MULTI_CITATION_JSON = VALID_CITATION_JSON # Already has Q1 and Q2
+
+
+@pytest.fixture(autouse=True)
+def mock_questions_json():
+    """Mock open('questions.json') to return only Q1 and Q2 for tests."""
+    # We only want to mock when it's exactly 'questions.json'
+    original_open = open
+    def side_effect(file, *args, **kwargs):
+        if file == "questions.json":
+            return mock_open(read_data=MOCK_QUESTIONS).return_value
+        return original_open(file, *args, **kwargs)
+    
+    with patch("builtins.open", side_effect=side_effect):
+        yield
 
 
 @pytest.fixture
@@ -252,15 +263,26 @@ def test_tool_handles_multi_citation_report(cleanup_pdfs):
 def test_tool_handles_unicode_in_citations(cleanup_pdfs):
     """Create citation with Unicode characters, verify tool returns success without encoding crash."""
     unicode_json = json.dumps({
-        "citations": [{
-            "question_id": "Q1",
-            "question_text": "What is the model's purpose?",
-            "answer": "Risk assessment using smart quotes and em-dashes",
-            "source_quote": "The system uses ML algorithms for naive Bayes classification",
-            "source_section": "Technical Description",
-            "confidence": "DIRECT",
-            "reasoning": "Found in technical documentation"
-        }]
+        "citations": [
+            {
+                "question_id": "Q1",
+                "question_text": "What is the model's purpose?",
+                "answer": "Risk assessment using smart quotes and em-dashes",
+                "source_quote": "The system uses ML algorithms for naive Bayes classification",
+                "source_section": "Technical Description",
+                "confidence": "DIRECT",
+                "reasoning": "Found in technical documentation"
+            },
+            {
+                "question_id": "Q2",
+                "question_text": "Training?",
+                "answer": "N/A",
+                "source_quote": "",
+                "source_section": "",
+                "confidence": "NOT FOUND",
+                "reasoning": "N/A"
+            }
+        ]
     })
 
     # Should not raise exception
@@ -283,15 +305,26 @@ def test_tool_handles_long_text_in_citations(cleanup_pdfs):
     long_quote = "This is a very long source quote that also exceeds 500 characters. " * 8  # ~536 chars
 
     long_text_json = json.dumps({
-        "citations": [{
-            "question_id": "Q1",
-            "question_text": "What is the detailed purpose?",
-            "answer": long_text,
-            "source_quote": long_quote,
-            "source_section": "Section 1",
-            "confidence": "DIRECT",
-            "reasoning": "Detailed explanation from documentation"
-        }]
+        "citations": [
+            {
+                "question_id": "Q1",
+                "question_text": "What is the detailed purpose?",
+                "answer": long_text,
+                "source_quote": long_quote,
+                "source_section": "Section 1",
+                "confidence": "DIRECT",
+                "reasoning": "Detailed explanation from documentation"
+            },
+            {
+                "question_id": "Q2",
+                "question_text": "Training?",
+                "answer": "N/A",
+                "source_quote": "",
+                "source_section": "",
+                "confidence": "NOT FOUND",
+                "reasoning": "N/A"
+            }
+        ]
     })
 
     # Should not raise exception

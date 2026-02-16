@@ -39,5 +39,8 @@ server_config.json
 !templates/default_template.docx
 *.log
 
+# Planning
+.planning/
+
 # Sensitive
 .env

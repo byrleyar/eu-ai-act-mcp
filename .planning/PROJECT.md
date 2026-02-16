@@ -8,54 +8,51 @@ An MCP server that helps users generate EU AI Act Article 53 GPAI compliance doc
 
 Every answer in the compliance document must be traceable back to its source — users need to trust and verify the generated compliance form.
 
-## Requirements
+## Current State
 
-### Validated
+**Shipped v1.2** -- 2026-02-16
+**Stats:** 2,750+ LOC Python, 67 tests passing.
+**Key Accomplishments:**
+- ✓ **Hallucination Detection**: `HALLUCINATED` confidence level with bold red visual treatment in PDF.
+- ✓ **Full Coverage**: Mandatory citation for all 80+ compliance questions enforced on server.
+- ✓ **Workflow Automation**: Just-in-time enforcement in `server.py` and `context.md` for reliable two-step tool execution.
+- ✓ **Self-Verification Protocol**: Claude audits its own answers against source text before report generation.
 
-- ✓ Fetch and enrich HuggingFace model cards with linked papers/docs — existing
-- ✓ Expose 50+ EU AI Act compliance questions via MCP tool — existing
-- ✓ Generate DOCX compliance document from template with placeholder substitution — existing
-- ✓ Serve generated documents via download endpoint with 24-hour retention — existing
-- ✓ Deploy via Railway with persistent volume storage — existing
-- ✓ Support Claude Desktop (stdio) and Claude.ai (HTTP/SSE) connections — existing
-- ✓ CORS handling for cross-origin MCP clients — existing
-- ✓ Background cleanup of expired documents — existing
-- ✓ Capture source citations during compliance form generation (quote, section, confidence level per answer) — v1.1
-- ✓ New `generate_source_report` MCP tool that produces a PDF source citation report — v1.1
-- ✓ PDF report shows for each field: question ID, answer, source location (section + quote), confidence level — v1.1
-- ✓ Inference chains for non-direct answers: related quote(s) + reasoning that led to the answer — v1.1
-- ✓ PDF generated server-side using ReportLab — v1.1
-- ✓ PDF served via same download endpoint as DOCX files — v1.1
+## Roadmap
 
-### Active
-
-- [ ] HALLUCINATED confidence level — new 5th type for answers not supported by model card sources, with self-checking during source report generation
-- [ ] Automatic source report workflow — Claude must call `generate_source_report` immediately after `generate_compliance_doc`, presenting both links together
-- [ ] Full question coverage — every question in questions.json must appear in the source report, even if NOT FOUND
-
-## Current Milestone: v1.2 Source Report Reliability
+<details>
+<summary>v1.2 Source Report Reliability (Shipped 2026-02-16)</summary>
 
 **Goal:** Make source citation reports trustworthy by ensuring full coverage, detecting hallucinations, and automating the generation flow.
 
-**Target features:**
-- HALLUCINATED confidence level with self-verification against model card
-- Automatic end-to-end workflow (compliance doc + source report together)
-- Mandatory citation for all 50+ compliance questions
+- [x] HALLUCINATED confidence level with self-verification against model card
+- [x] Automatic end-to-end workflow (compliance doc + source report together)
+- [x] Mandatory citation for all 80+ compliance questions enforced via server-side validation
 
-### Out of Scope
+See [.planning/milestones/v1.2-ROADMAP.md](milestones/v1.2-ROADMAP.md) for full archive.
 
-- Modifying the existing DOCX template structure — not needed for source tracking
-- Real-time validation during form fill — source report is post-generation
-- Embedding citations directly into the DOCX — separate PDF report is cleaner
-- Authentication/authorization — not addressed yet
-- PDF/A archival format — verify regulatory requirements before investing effort
-- Multi-source reconciliation — deferred to v2
-- Change tracking across compliance form versions — deferred to v2
-- Auditor annotation space — deferred to v2
+</details>
+
+<details>
+<summary>v1.1 Source Citation Reports (Shipped 2026-02-15)</summary>
+
+- [x] Capture source citations during compliance form generation (quote, section, confidence level per answer)
+- [x] New `generate_source_report` MCP tool that produces a PDF source citation report
+- [x] PDF report shows for each field: question ID, answer, source location (section + quote), confidence level
+- [x] Inference chains for non-direct answers: related quote(s) + reasoning that led to the answer
+
+See [.planning/milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md) for full archive.
+
+</details>
+
+## Next Milestone Goals (v1.3 Proposed)
+
+- **Audit & Review Workflow**: Allow users to "approve" or "comment" on citations in a third step.
+- **Regulatory Mapping**: Link each question ID to specific articles and measures in the EU AI Act.
+- **Enhanced Document Linkage**: Embed source report links or QR codes directly in the DOCX compliance form.
 
 ## Context
 
-Shipped v1.1 with 2,279 LOC Python (57 tests passing).
 Tech stack: Python 3.10+, FastMCP, python-docx, ReportLab 4.4.10, Pydantic v2, DejaVu Sans font family.
 Deployed on Railway with persistent volume storage.
 
@@ -64,36 +61,21 @@ Deployed on Railway with persistent volume storage.
 **Workflow:** User provides model ID -> Claude fetches model card -> Claude answers compliance questions while tracking source citations -> Claude calls `generate_compliance_doc` (DOCX) -> Claude calls `generate_source_report` (PDF) -> User gets both documents.
 
 **Confidence levels:**
-- **DIRECT** — Answer directly quoted from model card (verbatim quote + section, displayed in italics)
-- **INFERRED** — Answer derived from related information (related quote(s) + reasoning chain)
-- **DEFAULT** — Standard/assumed value used (explains why default was appropriate)
-- **NOT FOUND** — Information not available in model card (documents what was searched for)
-- **HALLUCINATED** — Answer not supported by model card sources (flagged during self-check) *(v1.2)*
-
-**Known issues (v1.1):**
-- Claude does not reliably call `generate_source_report` after `generate_compliance_doc` despite context.md instructions
-- Source reports only cover ~26 of 50+ questions — incomplete coverage
-
-## Constraints
-
-- **Stack**: Python 3.10+, ReportLab for PDF, python-docx for DOCX
-- **Deployment**: Railway with persistent volume mount for document storage
-- **Cleanup**: 24-hour TTL cleanup thread handles both .docx and .pdf files
-- **MCP Protocol**: All tools follow `@mcp.tool()` patterns
-- **Dependencies**: Minimal — ReportLab is the only dependency added in v1.1
+- **DIRECT** — Answer directly quoted from model card (italics)
+- **INFERRED** — Answer derived from related information (related quote + reasoning)
+- **DEFAULT** — Standard/assumed value used (rationale provided)
+- **NOT FOUND** — Information not available in model card (searched areas documented)
+- **HALLUCINATED** — Answer not supported by sources (bold red warning, flagged during self-check)
 
 ## Key Decisions
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Separate tool for source report (not combined with DOCX generation) | Keeps concerns separated, allows generating report independently, doesn't break existing DOCX workflow | Good — clean separation, independent generation works well |
-| Source data as separate JSON parameter (not embedded in compliance data) | Clean separation between answers and their provenance metadata | Good — Pydantic validation catches errors before PDF generation |
-| ReportLab for PDF generation | Pure Python, no system dependencies, well-maintained, sufficient for structured reports | Good — handles Unicode, tables, multi-page well |
-| Confidence levels: DIRECT/INFERRED/DEFAULT/NOT FOUND | Matches the user's existing validation prompt categories, covers all source types | Good — clear semantic distinction, maps well to visual formatting |
-| DejaVu Sans font for Unicode rendering | Open-source, supports European languages and common Unicode symbols | Good — prevents encoding crashes |
-| WCAG AA compliant confidence colors | Accessible color coding with 4.5:1+ contrast ratio | Good — works in print and on screen |
-| context.md workflow guidance instead of code changes | System prompt modification enables workflow changes without code changes | Good — faster iteration, matches existing patterns |
-| 3-phase structure (merged scale testing) | 25 requirements extending existing system, 3 phases optimal delivery | Good — completed efficiently in single day |
+| Separate tool for source report | Keeps concerns separated, allows generating report independently | Good — clean separation |
+| Source data as separate JSON parameter | Clean separation between answers and their provenance metadata | Good — Pydantic validation catches errors |
+| Pure red (#FF0000) for HALLUCINATED | Maximum visual distinction from NOT FOUND pink | Good — unmistakable warning |
+| Server-side coverage enforcement | Reliability over LLM-only instructions | Good — guarantees report completeness |
+| Just-in-time workflow instructions in server.py | Acts as a state machine trigger to prevent stopping halfway | Good — ensures 2nd tool call is made |
 
 ---
-*Last updated: 2026-02-16 after v1.2 milestone started*
+*Last updated: 2026-02-16 after Milestone v1.2 complete*

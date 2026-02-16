@@ -85,3 +85,25 @@ def validate_citation_json(json_string: str) -> CitationReport:
 
         error_string = "; ".join(error_messages)
         raise ValueError(error_string)
+
+
+def validate_report_coverage(report: CitationReport, required_ids: list[str]) -> None:
+    """Check if all required question IDs are present in the report.
+
+    Args:
+        report: Validated CitationReport instance
+        required_ids: List of question IDs that MUST be present
+
+    Raises:
+        ValueError: If any required IDs are missing, listing the specific missing IDs
+    """
+    if not required_ids:
+        return
+
+    present_ids = {c.question_id for c in report.citations}
+    missing_ids = [qid for qid in required_ids if qid not in present_ids]
+
+    if missing_ids:
+        missing_count = len(missing_ids)
+        missing_list_str = ", ".join(missing_ids)
+        raise ValueError(f"Missing citations for {missing_count} questions: [{missing_list_str}]")
