@@ -36,7 +36,7 @@ def test_valid_citation_all_fields():
 
 
 def test_valid_citation_all_confidence_levels():
-    """All 4 ConfidenceLevel values are accepted."""
+    """All 5 ConfidenceLevel values are accepted."""
     for level in ConfidenceLevel:
         citation = Citation(
             question_id="Q1",
@@ -87,6 +87,37 @@ def test_citation_with_source_document():
         reasoning="Standard value"
     )
     assert citation_without_doc.source_document == ""
+
+
+def test_valid_citation_hallucinated_confidence():
+    """Citation with HALLUCINATED confidence is accepted."""
+    citation = Citation(
+        question_id="Q1",
+        question_text="Test?",
+        confidence=ConfidenceLevel.HALLUCINATED,
+        reasoning="No supporting source found in model card"
+    )
+    assert citation.confidence == ConfidenceLevel.HALLUCINATED
+    assert citation.confidence.value == "HALLUCINATED"
+
+
+def test_validate_json_hallucinated_confidence():
+    """Valid JSON with HALLUCINATED confidence returns CitationReport."""
+    valid_json = json.dumps({
+        'citations': [
+            {
+                'question_id': 'Q1',
+                'question_text': 'Test question?',
+                'confidence': 'HALLUCINATED',
+                'reasoning': 'No supporting evidence found',
+            }
+        ]
+    })
+
+    result = validate_citation_json(valid_json)
+    assert isinstance(result, CitationReport)
+    assert len(result.citations) == 1
+    assert result.citations[0].confidence == ConfidenceLevel.HALLUCINATED
 
 
 def test_valid_report_multiple_citations():

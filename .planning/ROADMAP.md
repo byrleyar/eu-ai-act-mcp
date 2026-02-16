@@ -37,11 +37,10 @@ See [v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md) for full details.
   2. PDF report renders HALLUCINATED citations in bold red with distinct visual treatment that stands out from all other confidence levels
   3. Executive summary at the top of the PDF includes HALLUCINATED count in the confidence breakdown (e.g., "HALLUCINATED: 3")
   4. Existing tests continue to pass -- no regression in DIRECT, INFERRED, DEFAULT, or NOT FOUND handling
-**Plans**: TBD
+**Plans:** 1 plan
 
 Plans:
-- [ ] 04-01: TBD
-- [ ] 04-02: TBD
+- [ ] 04-01-PLAN.md -- Add HALLUCINATED confidence level to schema, PDF rendering, executive summary, and tests
 
 ### Phase 5: Coverage Enforcement
 **Goal**: The generate_source_report tool guarantees every question in questions.json has a citation entry, rejecting incomplete reports
@@ -80,10 +79,10 @@ Plans:
 | 1. PDF Infrastructure & Data Model | v1.1 | 2/2 | Complete | 2026-02-15 |
 | 2. MCP Tool Integration & File Management | v1.1 | 2/2 | Complete | 2026-02-15 |
 | 3. Citation Features & Workflow | v1.1 | 4/4 | Complete | 2026-02-15 |
-| 4. Hallucination Detection | v1.2 | 0/? | Not started | - |
+| 4. Hallucination Detection | v1.2 | 0/1 | Planned | - |
 | 5. Coverage Enforcement | v1.2 | 0/? | Not started | - |
 | 6. Workflow & Instructions | v1.2 | 0/? | Not started | - |
 
 ---
 *Roadmap created: 2026-02-15*
-*Last updated: 2026-02-16 after v1.2 roadmap created*
+*Last updated: 2026-02-16 after Phase 4 planned*

@@ -21,6 +21,7 @@ class ConfidenceLevel(str, Enum):
     INFERRED = "INFERRED"
     DEFAULT = "DEFAULT"
     NOT_FOUND = "NOT FOUND"
+    HALLUCINATED = "HALLUCINATED"
 
 
 class Citation(BaseModel):
