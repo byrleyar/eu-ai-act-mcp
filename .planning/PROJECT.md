@@ -10,20 +10,31 @@ Every answer in the compliance document must be traceable back to its source —
 
 ## Current State
 
-**Shipped v1.2** -- 2026-02-16
-**Stats:** 2,750+ LOC Python, 67 tests passing.
+**Shipped v1.3** -- 2026-02-16
+**Stats:** 3,100+ LOC Python, 77 tests passing.
 **Key Accomplishments:**
-- ✓ **Hallucination Detection**: `HALLUCINATED` confidence level with bold red visual treatment in PDF.
-- ✓ **Full Coverage**: Mandatory citation for all 80+ compliance questions enforced on server.
-- ✓ **Workflow Automation**: Just-in-time enforcement in `server.py` and `context.md` for reliable two-step tool execution.
-- ✓ **Self-Verification Protocol**: Claude audits its own answers against source text before report generation.
+- ✓ **High-Fidelity Data Acquisition**: Targeted discovery and retrieval of technical documentation to fill data gaps.
+- ✓ **Agentic Retrieval Workflow**: Active investigation loop (Gap Analysis -> Targeted Fetch) for higher fidelity reports.
+- ✓ **Discovery Engine Overhaul**: Automated extraction of links from BibTeX, citation blocks, and repo file lists.
+- ✓ **Targeted Fetch Tool**: On-demand retrieval and parsing of academic papers with SSRF protection.
 
 ## Roadmap
 
 <details>
-<summary>v1.2 Source Report Reliability (Shipped 2026-02-16)</summary>
+<summary>v1.3 High-Fidelity Data Acquisition (Shipped 2026-02-16)</summary>
 
-**Goal:** Make source citation reports trustworthy by ensuring full coverage, detecting hallucinations, and automating the generation flow.
+**Goal:** Enable targeted discovery and retrieval of technical documentation to fill data gaps in compliance reports.
+
+- [x] On-demand PDF/Doc retrieval tool
+- [x] Discovery engine overhaul (BibTeX, Citations, Repo files)
+- [x] Agentic retrieval workflow (Gap Analysis -> Targeted Fetch)
+
+See [.planning/milestones/v1.3-ROADMAP.md](milestones/v1.3-ROADMAP.md) for full archive.
+
+</details>
+
+<details>
+<summary>v1.2 Source Report Reliability (Shipped 2026-02-16)</summary>
 
 - [x] HALLUCINATED confidence level with self-verification against model card
 - [x] Automatic end-to-end workflow (compliance doc + source report together)
@@ -45,7 +56,7 @@ See [.planning/milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md) for full 
 
 </details>
 
-## Next Milestone Goals (v1.3 Proposed)
+## Next Milestone Goals (v1.4 Proposed)
 
 - **Audit & Review Workflow**: Allow users to "approve" or "comment" on citations in a third step.
 - **Regulatory Mapping**: Link each question ID to specific articles and measures in the EU AI Act.
@@ -56,26 +67,19 @@ See [.planning/milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md) for full 
 Tech stack: Python 3.10+, FastMCP, python-docx, ReportLab 4.4.10, Pydantic v2, DejaVu Sans font family.
 Deployed on Railway with persistent volume storage.
 
-**Architecture:** FastMCP server with 4 tools (`fetch_hf_model_card`, `get_compliance_requirements`, `generate_compliance_doc`, `generate_source_report`) and 2 resources. Document generation uses python-docx for DOCX and ReportLab for PDF. Files stored in `DATA_DIR` with 24-hour TTL cleanup handling both .docx and .pdf files.
+**Architecture:** FastMCP server with tools for model card fetching, requirements retrieval, and document generation (DOCX/PDF). Supports targeted document retrieval via `fetch_external_document`.
 
-**Workflow:** User provides model ID -> Claude fetches model card -> Claude answers compliance questions while tracking source citations -> Claude calls `generate_compliance_doc` (DOCX) -> Claude calls `generate_source_report` (PDF) -> User gets both documents.
-
-**Confidence levels:**
-- **DIRECT** — Answer directly quoted from model card (italics)
-- **INFERRED** — Answer derived from related information (related quote + reasoning)
-- **DEFAULT** — Standard/assumed value used (rationale provided)
-- **NOT FOUND** — Information not available in model card (searched areas documented)
-- **HALLUCINATED** — Answer not supported by sources (bold red warning, flagged during self-check)
+**Workflow:** User provides model ID -> Claude fetches model card and link checklist -> Claude performs gap analysis -> Claude fetches specific missing docs -> Claude generates compliance form and source report.
 
 ## Key Decisions
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
+| Agentic Retrieval | Shift from "fetch everything" to "fetch what is missing" to optimize context usage and fidelity | Good — higher precision |
 | Separate tool for source report | Keeps concerns separated, allows generating report independently | Good — clean separation |
-| Source data as separate JSON parameter | Clean separation between answers and their provenance metadata | Good — Pydantic validation catches errors |
+| SSRF Protection | Strict validation of URLs to block private/local network probes | Good — safety boundary |
 | Pure red (#FF0000) for HALLUCINATED | Maximum visual distinction from NOT FOUND pink | Good — unmistakable warning |
 | Server-side coverage enforcement | Reliability over LLM-only instructions | Good — guarantees report completeness |
-| Just-in-time workflow instructions in server.py | Acts as a state machine trigger to prevent stopping halfway | Good — ensures 2nd tool call is made |
 
 ---
-*Last updated: 2026-02-16 after Milestone v1.2 complete*
+*Last updated: 2026-02-16 after Milestone v1.3 complete*

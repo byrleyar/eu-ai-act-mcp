@@ -4,6 +4,7 @@
 
 - SHIPPED **v1.1 Source Citation Reports** -- Phases 1-3 (shipped 2026-02-15)
 - SHIPPED **v1.2 Source Report Reliability** -- Phases 4-6 (shipped 2026-02-16)
+- SHIPPED **v1.3 High-Fidelity Data Acquisition** -- Phases 7-9 (shipped 2026-02-16)
 
 ## Phases
 
@@ -13,8 +14,6 @@
 - [x] Phase 1: PDF Infrastructure & Data Model (2/2 plans) -- completed 2026-02-15
 - [x] Phase 2: MCP Tool Integration & File Management (2/2 plans) -- completed 2026-02-15
 - [x] Phase 3: Citation Features & Workflow (4/4 plans) -- completed 2026-02-15
-
-See [v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md) for full details.
 
 </details>
 
@@ -27,9 +26,18 @@ See [v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md) for full details.
 
 </details>
 
+<details>
+<summary>v1.3 High-Fidelity Data Acquisition (Phases 7-9) -- SHIPPED 2026-02-16</summary>
+
+- [x] Phase 7: Discovery Engine (1/1 plans) -- completed 2026-02-16
+- [x] Phase 8: Targeted Fetch Tool (1/1 plans) -- completed 2026-02-16
+- [x] Phase 9: Agentic Retrieval Workflow (1/1 plans) -- completed 2026-02-16
+
+</details>
+
 ## Progress
 
-**Milestone v1.2 COMPLETE**
+**Milestone v1.3 COMPLETE**
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|---------------|--------|-----------|
@@ -39,7 +47,10 @@ See [v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md) for full details.
 | 4. Hallucination Detection | v1.2 | 1/1 | Complete | 2026-02-16 |
 | 5. Coverage Enforcement | v1.2 | 1/1 | Complete | 2026-02-16 |
 | 6. Workflow & Instructions | v1.2 | 1/1 | Complete | 2026-02-16 |
+| 7. Discovery Engine | v1.3 | 1/1 | Complete | 2026-02-16 |
+| 8. Targeted Fetch Tool | v1.3 | 1/1 | Complete | 2026-02-16 |
+| 9. Agentic Retrieval Workflow | v1.3 | 1/1 | Complete | 2026-02-16 |
 
 ---
 *Roadmap created: 2026-02-15*
-*Last updated: 2026-02-16 after Milestone v1.2 completed*
+*Last updated: 2026-02-16 after Milestone v1.3 completed*
