@@ -14,7 +14,7 @@ See: .planning/PROJECT.md (updated 2026-02-16)
 ## Current Position
 
 **Milestone:** v1.3 High-Fidelity Data Acquisition -- COMPLETE
-**Phase:** 9 of 9 (Agentic Retrieval Workflow) -- complete
+**Phase:** 9 of 8 (Agentic Retrieval Workflow) -- complete
 **Plan:** 1 of 1 complete
 **Status:** Milestone v1.3 shipped.
 Last activity: 2026-02-16 -- Milestone v1.3 complete and archived.
@@ -63,6 +63,10 @@ Progress: [██████████] 100% (v1.3) -- 3 of 3 phases complete
 - **Investigator Workflow**: Shifted instructions to a "Discovery -> Gaps -> Fetch" loop.
 
 See .planning/PROJECT.md Key Decisions table for full history.
+
+### Roadmap Evolution
+
+- Phase 10 added: Fix Source Report Layout and Document Attribution
 
 ### Active TODOs
 
