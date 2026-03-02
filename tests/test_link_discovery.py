@@ -1,6 +1,8 @@
 import json
 from unittest.mock import patch, MagicMock
-from server import discover_relevant_links
+from compliance_service import ComplianceService as _CS
+_svc = _CS()
+discover_relevant_links = _svc.discover_relevant_links
 
 # Sample BibTeX entry
 BIBTEX_ENTRY = """
@@ -48,7 +50,7 @@ def test_discover_arxiv_links_in_bibtex():
 
 def test_discover_repo_files():
     """Verify repository PDF files are discovered."""
-    with patch("server.list_repo_files") as mock_list:
+    with patch("compliance_service.list_repo_files") as mock_list:
         mock_list.return_value = ["README.md", "technical_report.pdf", "code.py"]
         
         links = discover_relevant_links("some text", "test/repo")

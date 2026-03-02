@@ -1,6 +1,10 @@
 import pytest
 from unittest.mock import patch, MagicMock
-from server import is_safe_url, transform_arxiv_url, fetch_external_document
+from compliance_service import ComplianceService as _CS
+_svc = _CS()
+is_safe_url = _svc.is_safe_url
+transform_arxiv_url = _svc.transform_arxiv_url
+from server import fetch_external_document
 
 def test_is_safe_url():
     """Verify URL safety validator."""
@@ -21,7 +25,7 @@ def test_transform_arxiv_url():
     assert transform_arxiv_url("https://arxiv.org/pdf/2401.12345.pdf") == "https://arxiv.org/pdf/2401.12345.pdf"
     assert transform_arxiv_url("https://example.com/page") == "https://example.com/page"
 
-@patch("server.requests.get")
+@patch("compliance_service.requests.get")
 def test_fetch_external_document_large_file(mock_get):
     """Verify tool rejects large files."""
     mock_response = MagicMock()
@@ -31,8 +35,8 @@ def test_fetch_external_document_large_file(mock_get):
     result = fetch_external_document("https://example.com/large.pdf")
     assert "too large" in result
 
-@patch("server.requests.get")
-@patch("server.PdfReader")
+@patch("compliance_service.requests.get")
+@patch("compliance_service.PdfReader")
 def test_fetch_external_document_pdf_success(mock_pdf_reader, mock_get):
     """Verify successful PDF fetch and extraction."""
     # Mock requests response
@@ -52,7 +56,7 @@ def test_fetch_external_document_pdf_success(mock_pdf_reader, mock_get):
     assert "SOURCE: PDF Document" in result
     assert "Extracted PDF text content" in result
 
-@patch("server.requests.get")
+@patch("compliance_service.requests.get")
 def test_fetch_external_document_html_success(mock_get):
     """Verify successful HTML fetch and extraction."""
     mock_response = MagicMock()
