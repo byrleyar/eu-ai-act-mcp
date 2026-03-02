@@ -38,6 +38,7 @@ server_config.json
 *.docx
 !templates/default_template.docx
 *.log
+generated_docs/
 
 # Planning
 .planning/
