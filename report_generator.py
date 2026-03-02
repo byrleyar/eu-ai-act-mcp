@@ -585,14 +585,78 @@ class ReportGenerator:
         wb.save(xlsx_path)
         return xlsx_path
 
+    def write_executive_summary_txt(self, batch_dir: Path, models: list[dict]) -> Path:
+        """Write executive_summary.txt to batch_dir as readable plain text.
+
+        Contains the same information as Sheet 3 of the xlsx (batch metadata,
+        overall metrics, per-model ranking, flagged issues).
+
+        Returns:
+            Path to the written text file.
+        """
+        def _pct(rate: float) -> str:
+            return f"{rate * 100:.1f}%"
+
+        def _avg_metric(key: str) -> float:
+            if not models:
+                return 0.0
+            return sum(m["metrics"][key] for m in models) / len(models)
+
+        lines = [
+            "EU AI Act Compliance Audit - Executive Summary",
+            "================================================",
+            f"Batch: {batch_dir.name}",
+            f"Report Date: {date.today().isoformat()}",
+            f"Models Audited: {len(models)}",
+            "",
+            "Overall Metrics",
+            "---------------",
+            f"Accuracy Rate:      {_pct(_avg_metric('accuracy_rate'))}",
+            f"Hallucination Rate: {_pct(_avg_metric('hallucination_rate'))}",
+            f"Gap Rate:           {_pct(_avg_metric('gap_rate'))}",
+            f"N/A Rate:           {_pct(_avg_metric('na_rate'))}",
+            f"Pass Rate:          {_pct(_avg_metric('pass_rate'))}",
+            f"Fail Rate:          {_pct(_avg_metric('fail_rate'))}",
+            "",
+            "Per-Model Ranking (by Accuracy)",
+            "-------------------------------",
+        ]
+
+        sorted_models = sorted(models, key=lambda m: m["metrics"]["accuracy_rate"], reverse=True)
+        for rank_idx, model in enumerate(sorted_models, start=1):
+            m = model["metrics"]
+            lines.append(
+                f"{rank_idx}. {model['model_id']} -- "
+                f"Accuracy: {_pct(m['accuracy_rate'])}, "
+                f"Pass: {_pct(m['pass_rate'])}, "
+                f"Fail: {_pct(m['fail_rate'])}"
+            )
+
+        lines += ["", "Flagged Issues", "--------------"]
+        flagged = []
+        for model in models:
+            for qid, score in model["scores_by_qid"].items():
+                if score == "2":
+                    flagged.append(f"[HALLUCINATED] {model['model_id']} / {qid}")
+                elif score == "3":
+                    flagged.append(f"[INCOMPLETE] {model['model_id']} / {qid}")
+        if flagged:
+            lines.extend(flagged)
+        else:
+            lines.append("No hallucinated or incomplete fields detected.")
+
+        txt_path = batch_dir / "executive_summary.txt"
+        txt_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        return txt_path
+
     def generate(self, batch_dir: Path) -> None:
         """Orchestrate report generation for a batch directory.
 
         1. Discover all model subdirectories with audit_results.json
         2. Validate at least one model was audited
         3. Write batch_report.csv
-        4. Write batch_report.xlsx (placeholder -- Plan 02)
-        5. Write executive_summary.txt (placeholder -- Plan 02)
+        4. Write batch_report.xlsx
+        5. Write executive_summary.txt
         6. Print summary to console
         """
         if not batch_dir.exists():
@@ -615,11 +679,15 @@ class ReportGenerator:
 
         # Write CSV
         csv_path = self.write_csv(batch_dir, models)
-        console.print(f"CSV report: [cyan]{csv_path}[/cyan]")
+        console.print(f"CSV report:       [cyan]{csv_path}[/cyan]")
 
-        # Placeholder: Plan 02 will add xlsx and executive_summary.txt
-        # write_xlsx(batch_dir, models)
-        # write_executive_summary(batch_dir, models)
+        # Write xlsx
+        xlsx_path = self.write_xlsx(batch_dir, models)
+        console.print(f"Excel report:     [cyan]{xlsx_path}[/cyan]")
+
+        # Write executive_summary.txt
+        txt_path = self.write_executive_summary_txt(batch_dir, models)
+        console.print(f"Executive summary:[cyan]{txt_path}[/cyan]")
 
         # Print console summary table
         console.print("\n[bold]Audit Report Summary[/bold]")

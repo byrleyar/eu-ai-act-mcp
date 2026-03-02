@@ -395,3 +395,26 @@ def test_write_xlsx_sheet2_section_count(tmp_path):
     wb = openpyxl.load_workbook(xlsx_path)
     ws2 = wb["Section Summary"]
     assert ws2.max_row == 10
+
+
+# ---------------------------------------------------------------------------
+# ReportGenerator.write_executive_summary_txt tests
+# ---------------------------------------------------------------------------
+
+
+def test_write_executive_summary_txt(tmp_path):
+    """write_executive_summary_txt writes a readable text file with required content."""
+    models = _make_mock_models(tmp_path)
+    generator = ReportGenerator()
+    txt_path = generator.write_executive_summary_txt(tmp_path, models)
+
+    assert txt_path.exists()
+    assert txt_path.name == "executive_summary.txt"
+
+    content = txt_path.read_text(encoding="utf-8")
+
+    assert "Executive Summary" in content
+    assert tmp_path.name in content
+    assert "Accuracy Rate" in content
+    assert "org/model-a" in content
+    assert "org/model-b" in content
