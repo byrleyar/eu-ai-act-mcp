@@ -1,27 +1,36 @@
 # Project State
 
 **Project:** EU AI Act Compliance MCP Server
-**Status:** Milestone v1.3 -- complete
-**Last Updated:** 2026-02-16
+**Status:** Milestone v1.4 -- started
+**Last Updated:** 2026-03-02
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-02-16)
+See: .planning/PROJECT.md (updated 2026-03-02)
 
 **Core value:** Every answer in the compliance document must be traceable back to its source.
-**Current focus:** Milestone v1.3 complete -- High-Fidelity Data Acquisition.
+**Current focus:** Milestone v1.4 -- Automated Batch Testing & Compliance Audit.
 
 ## Current Position
 
-**Milestone:** Post-v1.3 Fixes
-**Phase:** 10 (Fix Source Report Layout and Document Attribution)
-**Plan:** 1 of 1 complete
-**Status:** Phase 10 complete -- PDF layout fixes and INFERRED citation attribution.
-Last activity: 2026-02-16 -- Completed Phase 10 Plan 1.
+**Milestone:** v1.4 (Automated Batch Testing & Compliance Audit)
+**Phase:** 11 (Batch Processing Engine) -- complete
+**Plan:** 01 -- complete
+**Status:** Phase 12 started (Automated Audit Workflow)
+**Last activity:** 2026-03-02 — Phase 11 complete
 
-Progress: [█████████░] 100% (Phase 10) -- 1 of 1 plans complete
+Progress: [▓▓▓░░░░░░░] 33% (v1.4)
 
 ## Performance Metrics
+
+**v1.4 Milestone (started):**
+- Phases: 1 of 3 complete
+- Plans: 1 of 1 complete
+- Requirements: 5 of 14 complete
+
+| Phase | Plan | Duration | Tasks | Files | Tests | Status   |
+|-------|------|----------|-------|-------|-------|----------|
+| 11    | 01   | 10min    | 5     | 7     | 5     | Complete |
 
 **v1.3 Milestone (complete):**
 - Phases: 3 of 3 complete
@@ -53,7 +62,7 @@ Progress: [█████████░] 100% (Phase 10) -- 1 of 1 plans compl
 
 **v1.1 Milestone (archived):**
 - Phases: 3, Plans: 8, Requirements: 25/25
-- See .planning/milestones/v1.1-ROADMAP.md
+- See .planning/milestones/v1.1-REQUIREMENTS.md
 
 ## Accumulated Context
 
@@ -73,6 +82,11 @@ Progress: [█████████░] 100% (Phase 10) -- 1 of 1 plans compl
 - **Column Width Selection**: Section column set to 0.8" (not 0.75") based on research showing minimum width for 9pt DejaVu Sans.
 - **Document Attribution Consistency**: Extended INFERRED citations to show document and section attribution, matching DIRECT citation format.
 
+**Phase 11:**
+- **ComplianceService Pattern**: Extracted all core logic from server.py into ComplianceService class, reused by both MCP server and batch CLI.
+- **ProcessingContext State Isolation**: Fresh ProcessingContext per model iteration to prevent state leakage (BAT-03).
+- **Batch Artifacts Design**: Save model_card.txt + discovered_links.json + compliance_data_template.json per model; full automated analysis deferred to Phase 12.
+
 See .planning/PROJECT.md Key Decisions table for full history.
 
 ### Roadmap Evolution
@@ -81,7 +95,7 @@ See .planning/PROJECT.md Key Decisions table for full history.
 
 ### Active TODOs
 
-- Milestone v1.3 is complete. Ready for v1.4 planning.
+- Milestone v1.4 started. Focus on Batch Processing and Automated Audit.
 
 ### Known Blockers
 
@@ -91,19 +105,20 @@ None.
 
 **Summary:**
 - v1.3 is fully shipped.
-- The system now handles sparse model cards by hunting for technical reports.
-- Fidelity of compliance reports is significantly improved.
+- v1.4 started: Automated Batch Testing & Compliance Audit.
+- Input: CSV/List of models.
+- Output: Compliance docs + Audit reports with performance scores.
 
 ---
 
 ## Last Session
 
-**Timestamp:** 2026-02-16
-**Stopped at:** Completed Phase 10 Plan 1 (Fix Source Report Layout and Document Attribution).
-**Next action:** Ready for next phase planning or v1.4 milestone planning
+**Timestamp:** 2026-03-02
+**Stopped at:** Completed Phase 11 (Batch Processing Engine) - Plan 01. All 5 tasks committed atomically. SUMMARY.md created.
+**Next action:** Phase 12 - Automated Audit Workflow.
 
 ---
 
 *State tracking for: EU AI Act Compliance MCP Server*
 *Created: 2026-02-15*
-*Last updated: 2026-02-16 after completing Phase 10 Plan 1*
+*Last updated: 2026-03-02 after completing Phase 11 Plan 01*

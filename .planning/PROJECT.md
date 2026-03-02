@@ -56,7 +56,17 @@ See [.planning/milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md) for full 
 
 </details>
 
-## Next Milestone Goals (v1.4 Proposed)
+## Current Milestone: v1.4 Automated Batch Testing & Compliance Audit
+
+**Goal:** Automate compliance form generation and self-audit across multiple models to evaluate and track performance at scale.
+
+**Target features:**
+- **Batch Processing Engine**: Generate compliance docs from a CSV/list of model IDs.
+- **Automated Audit Workflow**: Generate detailed source attribution audits for each form.
+- **Performance Scoring (1-4)**: Self-score answers to identify hallucinations or gaps.
+- **Aggregate Results Summary**: Produce a table of findings across all models.
+
+## Next Milestone Goals (v1.5 Proposed)
 
 - **Audit & Review Workflow**: Allow users to "approve" or "comment" on citations in a third step.
 - **Regulatory Mapping**: Link each question ID to specific articles and measures in the EU AI Act.
@@ -82,4 +92,4 @@ Deployed on Railway with persistent volume storage.
 | Server-side coverage enforcement | Reliability over LLM-only instructions | Good — guarantees report completeness |
 
 ---
-*Last updated: 2026-02-16 after Milestone v1.3 complete*
+*Last updated: 2026-03-02 after Milestone v1.4 started*
