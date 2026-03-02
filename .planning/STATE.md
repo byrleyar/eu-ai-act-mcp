@@ -14,24 +14,26 @@ See: .planning/PROJECT.md (updated 2026-03-02)
 ## Current Position
 
 **Milestone:** v1.4 (Automated Batch Testing & Compliance Audit)
-**Phase:** 12 (Automated Audit Workflow) -- in progress
+**Phase:** 13 (Aggregate Results & Reporting) -- in progress
 **Plan:** 01 -- complete
-**Status:** Phase 12 Plan 01 complete (AuditService core)
-**Last activity:** 2026-03-02 — Phase 12 Plan 01 complete
+**Status:** Phase 13 Plan 01 complete (ReportGenerator core, CSV, 11 tests). Next: Phase 13 Plan 02 (Excel workbook)
+**Last activity:** 2026-03-02 — Phase 13 Plan 01 complete (ReportGenerator, SECTION_MAP, compute_metrics, batch_report.csv)
 
-Progress: [▓▓▓▓░░░░░░] 40% (v1.4)
+Progress: [▓▓▓▓▓▓░░░░] 60% (v1.4)
 
 ## Performance Metrics
 
 **v1.4 Milestone (in progress):**
-- Phases: 1 of 3 complete (Phase 11 done; Phase 12 in progress)
-- Plans: 2 of N complete
-- Requirements: 7 of 14 complete
+- Phases: 2 of 3 complete (Phase 11 done; Phase 12 done; Phase 13 in progress)
+- Plans: 4 of N complete
+- Requirements: 10 of 14 complete
 
 | Phase | Plan | Duration | Tasks | Files | Tests | Status   |
 |-------|------|----------|-------|-------|-------|----------|
 | 11    | 01   | 10min    | 5     | 7     | 5     | Complete |
 | 12    | 01   | 8min     | 2     | 3     | 11    | Complete |
+| 12    | 02   | ~45min   | 2     | 2     | 3     | Complete |
+| 13    | 01   | 3min     | 2     | 3     | 11    | Complete |
 
 **v1.3 Milestone (complete):**
 - Phases: 3 of 3 complete
@@ -93,6 +95,14 @@ Progress: [▓▓▓▓░░░░░░] 40% (v1.4)
 - **Optional client injection**: AuditService accepts anthropic_client=None for testability without mocking env vars.
 - **JSON fence stripping**: LLMs frequently wrap output in markdown code fences; the parser defensively strips fences before json.loads().
 - **Count-validation**: After parsing, assert len(field_audits) == len(questions) to catch LLM skipping/duplicating entries early.
+- **Typer single-command app**: @app.command() registers function as default command; invocation is `python audit_processor.py batches/...` (no `run` subcommand needed).
+- **ProcessingContext reused**: AuditService receives ProcessingContext with output_path=str(model_dir) to route outputs into model subdirectory.
+- **model_id recovery**: Directory name `__` separator reversed to `/` via simple string replace, matching inverse of sanitize_model_id.
+
+**Phase 13:**
+- **score_counts stored in model dict**: discover_audited_models stores remapped score_counts alongside metrics so write_csv can access raw counts without re-reading files.
+- **Startup assertion at module level**: SECTION_MAP drift caught at import time via assertion against questions.json.
+- **openpyxl declared in Plan 01**: Even though xlsx generation is Plan 02, dependency declared now so Plan 02 import works cleanly.
 
 See .planning/PROJECT.md Key Decisions table for full history.
 
@@ -102,7 +112,7 @@ See .planning/PROJECT.md Key Decisions table for full history.
 
 ### Active TODOs
 
-- Milestone v1.4 in progress. Phase 12 Plan 01 complete. Next: Phase 12 Plan 02 (audit CLI/runner integration).
+- Milestone v1.4 in progress. Phase 12 complete. Phase 13 in progress (Plan 01 done). Next: Phase 13 Plan 02 (Excel workbook generation).
 
 ### Known Blockers
 
@@ -114,20 +124,21 @@ None.
 - v1.3 is fully shipped.
 - v1.4 in progress: Automated Batch Testing & Compliance Audit.
 - Phase 11 complete: batch CLI fetches model cards + saves artifacts per model.
-- Phase 12 Plan 01 complete: AuditService core built (Pydantic models, LLM prompt, audit_model() method, 11 unit tests).
+- Phase 12 complete: AuditService core (12-01) + audit_processor.py CLI (12-02). End-to-end validated: 80 field_audits with non-trivial score distribution for facebook/opt-125m. 102 tests passing.
+- Phase 13 Plan 01 complete: ReportGenerator core -- SECTION_MAP (8 sections, 80 questions), compute_metrics, load_audit_results, discover_audited_models with score key remapping, write_csv, batch_report.csv, Typer CLI. 11 unit tests passing. 113 tests total.
 - Input: CSV/List of models.
-- Output: Compliance docs + Audit reports with performance scores.
+- Output: Compliance docs + Audit reports with performance scores + batch_report.csv/xlsx.
 
 ---
 
 ## Last Session
 
 **Timestamp:** 2026-03-02
-**Stopped at:** Completed Phase 12 Plan 01 (AuditService core). 2 tasks committed atomically. SUMMARY.md created.
-**Next action:** Phase 12 Plan 02 -- integrate AuditService into batch workflow or CLI runner.
+**Stopped at:** Completed Phase 13 Plan 01 (ReportGenerator core, SECTION_MAP, compute_metrics, batch_report.csv). 2 tasks complete. SUMMARY.md created. 11 unit tests passing.
+**Next action:** Phase 13 Plan 02 -- Excel workbook generation (batch_report.xlsx, 3 sheets).
 
 ---
 
 *State tracking for: EU AI Act Compliance MCP Server*
 *Created: 2026-02-15*
-*Last updated: 2026-03-02 after completing Phase 12 Plan 01*
+*Last updated: 2026-03-02 after completing Phase 13 Plan 01*
