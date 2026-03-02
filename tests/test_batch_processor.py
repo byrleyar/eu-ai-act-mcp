@@ -8,6 +8,18 @@ def test_sanitize_model_id():
     assert sanitize_model_id("org/model/sub") == "org__model__sub"
 
 def test_batch_directory_structure(tmp_path):
-    # This is a bit more complex to test without running the whole app
-    # but we can test the logic if we extract it.
-    pass
+    output_dir = tmp_path / "batches"
+    batch_root = output_dir / "batch_2026-03-02_1200"
+    batch_root.mkdir(parents=True, exist_ok=True)
+
+    safe_name = sanitize_model_id("org/model")
+    model_dir = batch_root / safe_name
+    model_dir.mkdir(parents=True, exist_ok=True)
+
+    assert batch_root.exists()
+    assert model_dir.exists()
+    assert model_dir.name == "org__model"
+    assert model_dir.parent == batch_root
+
+    # Verify exist_ok=True does not raise on re-creation
+    model_dir.mkdir(parents=True, exist_ok=True)

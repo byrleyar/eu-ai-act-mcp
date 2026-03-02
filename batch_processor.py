@@ -113,7 +113,7 @@ def run(
 
                 # Placeholder for BAT-05: Since Automated Analysis is Phase 12,
                 # we save an empty compliance template to show artifact persistence.
-                with open("questions.json", "r") as f:
+                with open(Path(__file__).parent / "questions.json", "r") as f:
                     questions = json.load(f)
                 
                 # Create empty template

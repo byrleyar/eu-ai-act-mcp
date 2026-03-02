@@ -2,23 +2,10 @@ from mcp.server.fastmcp import FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
 import os
 import json
-from huggingface_hub import ModelCard, list_repo_files
-from huggingface_hub.utils import EntryNotFoundError, RepositoryNotFoundError
-from docx_generator import fill_template
-from citation_schema import validate_citation_json, validate_report_coverage
-from pdf_generator import generate_source_report_pdf
 from starlette.requests import Request
 from starlette.responses import FileResponse, Response
 import mcp.types as types
-import io
 import base64
-import uuid
-import requests
-import re
-import ipaddress
-from urllib.parse import urlparse
-from pypdf import PdfReader
-
 import time
 import threading
 
