@@ -6,12 +6,15 @@ Covers:
   - load_audit_results (missing file, valid file)
   - ReportGenerator.discover_audited_models (discovery, key remapping)
   - ReportGenerator.write_csv (header, row count, percentage range)
+  - ReportGenerator.write_xlsx (3 sheets, row counts)
+  - ReportGenerator.write_executive_summary_txt (content validation)
 """
 
 import csv
 import json
 from pathlib import Path
 
+import openpyxl
 import pytest
 
 from report_generator import (
@@ -298,3 +301,97 @@ def test_write_csv(tmp_path):
     for row in rows:
         acc = float(row["accuracy_pct"])
         assert 0.0 <= acc <= 100.0
+
+
+# ---------------------------------------------------------------------------
+# Shared mock models fixture for xlsx / txt tests
+# ---------------------------------------------------------------------------
+
+
+def _make_mock_models(tmp_path: Path) -> list[dict]:
+    """Build 2 mock models with all 80 question IDs scored."""
+    all_qids = [qid for qids in SECTION_MAP.values() for qid in qids]
+    # Model A: all scored "1" except last 5 which are "4"
+    scores_a = {}
+    for i, qid in enumerate(all_qids):
+        scores_a[qid] = "4" if i >= 75 else "1"
+    score_counts_a = {
+        "score_1": 75, "score_1i": 0, "score_2": 0, "score_3": 0, "score_4": 5,
+        "total_fields": 80,
+    }
+    # Model B: mix of scores
+    scores_b = {}
+    for i, qid in enumerate(all_qids):
+        if i < 40:
+            scores_b[qid] = "1"
+        elif i < 50:
+            scores_b[qid] = "1i"
+        elif i < 55:
+            scores_b[qid] = "2"
+        elif i < 60:
+            scores_b[qid] = "3"
+        else:
+            scores_b[qid] = "4"
+    score_counts_b = {
+        "score_1": 40, "score_1i": 10, "score_2": 5, "score_3": 5, "score_4": 20,
+        "total_fields": 80,
+    }
+    return [
+        {
+            "model_id": "org/model-a",
+            "model_dir": tmp_path / "model_a",
+            "scores_by_qid": scores_a,
+            "summary": {},
+            "metrics": compute_metrics(score_counts_a),
+            "score_counts": score_counts_a,
+        },
+        {
+            "model_id": "org/model-b",
+            "model_dir": tmp_path / "model_b",
+            "scores_by_qid": scores_b,
+            "summary": {},
+            "metrics": compute_metrics(score_counts_b),
+            "score_counts": score_counts_b,
+        },
+    ]
+
+
+# ---------------------------------------------------------------------------
+# ReportGenerator.write_xlsx tests
+# ---------------------------------------------------------------------------
+
+
+def test_write_xlsx_creates_3_sheets(tmp_path):
+    """write_xlsx produces an xlsx file with exactly 3 correctly-named sheets."""
+    models = _make_mock_models(tmp_path)
+    generator = ReportGenerator()
+    xlsx_path = generator.write_xlsx(tmp_path, models)
+
+    assert xlsx_path.exists()
+    assert xlsx_path.name == "batch_report.xlsx"
+
+    wb = openpyxl.load_workbook(xlsx_path)
+    assert wb.sheetnames == ["Per-Field Detail", "Section Summary", "Executive Summary"]
+
+
+def test_write_xlsx_sheet1_row_count(tmp_path):
+    """Sheet 'Per-Field Detail' should have 81 rows: 1 header + 80 question rows."""
+    models = _make_mock_models(tmp_path)
+    generator = ReportGenerator()
+    xlsx_path = generator.write_xlsx(tmp_path, models)
+
+    wb = openpyxl.load_workbook(xlsx_path)
+    ws1 = wb["Per-Field Detail"]
+    # max_row counts all rows with data
+    assert ws1.max_row == 81
+
+
+def test_write_xlsx_sheet2_section_count(tmp_path):
+    """Sheet 'Section Summary' should have 10 rows: 1 header + 8 sections + 1 total."""
+    models = _make_mock_models(tmp_path)
+    generator = ReportGenerator()
+    xlsx_path = generator.write_xlsx(tmp_path, models)
+
+    wb = openpyxl.load_workbook(xlsx_path)
+    ws2 = wb["Section Summary"]
+    assert ws2.max_row == 10

@@ -6,8 +6,11 @@ batch summary reports: batch_report.csv (Plan 01) and batch_report.xlsx (Plan 02
 
 import csv
 import json
+from datetime import date
 from pathlib import Path
 
+import openpyxl
+from openpyxl.styles import Alignment, Font, PatternFill
 import typer
 from rich.console import Console
 
@@ -261,6 +264,326 @@ class ReportGenerator:
                     "fail_pct": round(m["fail_rate"] * 100, 2),
                 })
         return csv_path
+
+    def write_xlsx(self, batch_dir: Path, models: list[dict]) -> Path:
+        """Write batch_report.xlsx to batch_dir with 3 sheets.
+
+        Sheet 1 -- Per-Field Detail: one row per question with scores and sidebar aggregate.
+        Sheet 2 -- Section Summary: N/A count per section per model.
+        Sheet 3 -- Executive Summary: metadata, metrics, ranking, flagged issues.
+
+        Returns:
+            Path to the written xlsx file.
+        """
+        wb = openpyxl.Workbook()
+
+        # --- Shared style helpers ---
+        def hdr_style(cell: openpyxl.cell.Cell) -> None:
+            """Apply blue header style to a cell."""
+            cell.font = Font(bold=True, color="FFFFFF")
+            cell.fill = PatternFill("solid", fgColor="4472C4")
+            cell.alignment = Alignment(horizontal="center", vertical="center")
+
+        def _bold_sz(cell: openpyxl.cell.Cell, size: int = 11) -> None:
+            cell.font = Font(bold=True, size=size)
+
+        GREEN_FILL = PatternFill("solid", fgColor="C6EFCE")
+        ORANGE_FILL = PatternFill("solid", fgColor="FFC7CE")
+        GRAY_FILL = PatternFill("solid", fgColor="D9D9D9")
+
+        score_fill_map = {
+            "1": GREEN_FILL,
+            "1i": GREEN_FILL,
+            "2": ORANGE_FILL,
+            "3": ORANGE_FILL,
+            "4": GRAY_FILL,
+        }
+
+        # -----------------------------------------------------------------
+        # Sheet 1: Per-Field Detail
+        # -----------------------------------------------------------------
+        ws1 = wb.active
+        ws1.title = "Per-Field Detail"
+
+        model_count = len(models)
+        # Column indices: A=1 (Section), B=2 (Question ID), then model columns start at 3
+        model_col_start = 3
+        # Sidebar starts after model columns + 1 gap
+        sidebar_col_start = model_col_start + model_count + 1
+
+        # Header row
+        ws1.cell(row=1, column=1, value="Section")
+        ws1.cell(row=1, column=2, value="Question ID")
+        for i, model in enumerate(models):
+            c = ws1.cell(row=1, column=model_col_start + i, value=model["model_id"])
+            hdr_style(c)
+        # Sidebar header
+        sidebar_headers = [
+            "Model", "Direct (1)", "%(1)", "Inferred (1i)", "%(1i)",
+            "Hallucinated (2)", "%(2)", "Incomplete (3)", "%(3)", "N/A (4)", "%(4)",
+        ]
+        for j, sh in enumerate(sidebar_headers):
+            c = ws1.cell(row=1, column=sidebar_col_start + j, value=sh)
+            hdr_style(c)
+        # Style first two header cells
+        for col in (1, 2):
+            hdr_style(ws1.cell(row=1, column=col))
+
+        # Data rows
+        data_row = 2
+        all_questions_ordered = []
+        for section, qids in SECTION_MAP.items():
+            for qid in qids:
+                all_questions_ordered.append((section, qid))
+
+        for section, qid in all_questions_ordered:
+            ws1.cell(row=data_row, column=1, value=section)
+            ws1.cell(row=data_row, column=2, value=qid)
+            for i, model in enumerate(models):
+                score_val = model["scores_by_qid"].get(qid, "")
+                c = ws1.cell(row=data_row, column=model_col_start + i, value=score_val)
+                fill = score_fill_map.get(str(score_val))
+                if fill:
+                    c.fill = fill
+                    c.alignment = Alignment(horizontal="center")
+            data_row += 1
+
+        # Sidebar aggregate block (data rows 2+)
+        for i, model in enumerate(models):
+            sc = model["score_counts"]
+            m = model["metrics"]
+            total = sc["total_fields"]
+            s1 = sc["score_1"]
+            s1i = sc["score_1i"]
+            s2 = sc["score_2"]
+            s3 = sc["score_3"]
+            s4 = sc["score_4"]
+            sidebar_row = 2 + i
+            ws1.cell(row=sidebar_row, column=sidebar_col_start, value=model["model_id"])
+            ws1.cell(row=sidebar_row, column=sidebar_col_start + 1, value=s1)
+            pct1 = ws1.cell(row=sidebar_row, column=sidebar_col_start + 2, value=s1 / total if total else 0.0)
+            pct1.number_format = "0.0%"
+            ws1.cell(row=sidebar_row, column=sidebar_col_start + 3, value=s1i)
+            pct1i = ws1.cell(row=sidebar_row, column=sidebar_col_start + 4, value=s1i / total if total else 0.0)
+            pct1i.number_format = "0.0%"
+            ws1.cell(row=sidebar_row, column=sidebar_col_start + 5, value=s2)
+            pct2 = ws1.cell(row=sidebar_row, column=sidebar_col_start + 6, value=m["hallucination_rate"])
+            pct2.number_format = "0.0%"
+            ws1.cell(row=sidebar_row, column=sidebar_col_start + 7, value=s3)
+            pct3 = ws1.cell(row=sidebar_row, column=sidebar_col_start + 8, value=m["gap_rate"])
+            pct3.number_format = "0.0%"
+            ws1.cell(row=sidebar_row, column=sidebar_col_start + 9, value=s4)
+            pct4 = ws1.cell(row=sidebar_row, column=sidebar_col_start + 10, value=m["na_rate"])
+            pct4.number_format = "0.0%"
+
+        # Average row in sidebar
+        if model_count > 0:
+            avg_row = 2 + model_count
+            ws1.cell(row=avg_row, column=sidebar_col_start, value="Average")
+            _bold_sz(ws1.cell(row=avg_row, column=sidebar_col_start))
+            # Only populate percentage columns
+            pct_col_offsets = [2, 4, 6, 8, 10]
+            for offset in pct_col_offsets:
+                vals = [
+                    ws1.cell(row=2 + i, column=sidebar_col_start + offset).value
+                    for i in range(model_count)
+                ]
+                avg_val = sum(v for v in vals if v is not None) / model_count
+                c = ws1.cell(row=avg_row, column=sidebar_col_start + offset, value=avg_val)
+                c.number_format = "0.0%"
+
+        # Column widths
+        ws1.column_dimensions["A"].width = 25
+        ws1.column_dimensions["B"].width = 35
+        for i in range(model_count):
+            col_letter = openpyxl.utils.get_column_letter(model_col_start + i)
+            ws1.column_dimensions[col_letter].width = 10
+        # Sidebar widths
+        sidebar_widths = [30, 10, 8, 14, 8, 16, 8, 14, 8, 10, 8]
+        for j, w in enumerate(sidebar_widths):
+            col_letter = openpyxl.utils.get_column_letter(sidebar_col_start + j)
+            ws1.column_dimensions[col_letter].width = w
+
+        # Freeze pane at A2
+        ws1.freeze_panes = "A2"
+
+        # Auto-filter on data columns A through last model column
+        last_model_col = openpyxl.utils.get_column_letter(model_col_start + model_count - 1) if model_count else "B"
+        ws1.auto_filter.ref = f"A1:{last_model_col}1"
+
+        # -----------------------------------------------------------------
+        # Sheet 2: Section Summary
+        # -----------------------------------------------------------------
+        ws2 = wb.create_sheet("Section Summary")
+
+        # Header
+        ws2.cell(row=1, column=1, value="Section")
+        hdr_style(ws2.cell(row=1, column=1))
+        for i, model in enumerate(models):
+            c = ws2.cell(row=1, column=2 + i, value=model["model_id"])
+            hdr_style(c)
+        total_4s_col = 2 + model_count
+        avg_4s_col = total_4s_col + 1
+        qs_in_section_col = avg_4s_col + 1
+        for col, header in [
+            (total_4s_col, "Total 4s (N/A)"),
+            (avg_4s_col, "Avg 4s"),
+            (qs_in_section_col, "Questions in Section"),
+        ]:
+            c = ws2.cell(row=1, column=col, value=header)
+            hdr_style(c)
+
+        # Section rows
+        for row_idx, (section, qids) in enumerate(SECTION_MAP.items(), start=2):
+            ws2.cell(row=row_idx, column=1, value=section)
+            model_counts_4 = []
+            for i, model in enumerate(models):
+                count_4 = sum(
+                    1 for qid in qids
+                    if model["scores_by_qid"].get(qid) == "4"
+                )
+                ws2.cell(row=row_idx, column=2 + i, value=count_4)
+                model_counts_4.append(count_4)
+            total_4 = sum(model_counts_4)
+            avg_4 = total_4 / model_count if model_count else 0.0
+            ws2.cell(row=row_idx, column=total_4s_col, value=total_4)
+            ws2.cell(row=row_idx, column=avg_4s_col, value=round(avg_4, 2))
+            ws2.cell(row=row_idx, column=qs_in_section_col, value=len(qids))
+
+        # Total row
+        total_row = 2 + len(SECTION_MAP)
+        ws2.cell(row=total_row, column=1, value="Total")
+        _bold_sz(ws2.cell(row=total_row, column=1))
+        for i in range(model_count):
+            col = 2 + i
+            col_sum = sum(
+                ws2.cell(row=2 + r, column=col).value or 0
+                for r in range(len(SECTION_MAP))
+            )
+            c = ws2.cell(row=total_row, column=col, value=col_sum)
+            _bold_sz(c)
+        # Total 4s total
+        grand_total_4s = sum(
+            ws2.cell(row=2 + r, column=total_4s_col).value or 0
+            for r in range(len(SECTION_MAP))
+        )
+        c = ws2.cell(row=total_row, column=total_4s_col, value=grand_total_4s)
+        _bold_sz(c)
+        overall_avg_4s = grand_total_4s / model_count if model_count else 0.0
+        c = ws2.cell(row=total_row, column=avg_4s_col, value=round(overall_avg_4s, 2))
+        _bold_sz(c)
+        total_questions = sum(len(qids) for qids in SECTION_MAP.values())
+        c = ws2.cell(row=total_row, column=qs_in_section_col, value=total_questions)
+        _bold_sz(c)
+
+        # Column widths for Sheet 2
+        ws2.column_dimensions["A"].width = 25
+        for i in range(model_count):
+            col_letter = openpyxl.utils.get_column_letter(2 + i)
+            ws2.column_dimensions[col_letter].width = 12
+        for col in (total_4s_col, avg_4s_col, qs_in_section_col):
+            ws2.column_dimensions[openpyxl.utils.get_column_letter(col)].width = 12
+
+        # -----------------------------------------------------------------
+        # Sheet 3: Executive Summary
+        # -----------------------------------------------------------------
+        ws3 = wb.create_sheet("Executive Summary")
+
+        # Row 1: Title
+        title_cell = ws3.cell(row=1, column=1, value="EU AI Act Compliance Audit - Executive Summary")
+        title_cell.font = Font(bold=True, size=14)
+
+        # Metadata
+        ws3.cell(row=3, column=1, value="Batch:")
+        ws3.cell(row=3, column=2, value=batch_dir.name)
+        ws3.cell(row=4, column=1, value="Report Date:")
+        ws3.cell(row=4, column=2, value=date.today().isoformat())
+        ws3.cell(row=5, column=1, value="Models Audited:")
+        ws3.cell(row=5, column=2, value=model_count)
+
+        # Overall Metrics header
+        om_cell = ws3.cell(row=7, column=1, value="Overall Metrics")
+        om_cell.font = Font(bold=True, size=12)
+
+        # Compute averages across models
+        def _avg_metric(key: str) -> float:
+            if not models:
+                return 0.0
+            return sum(m["metrics"][key] for m in models) / len(models)
+
+        overall_metrics = [
+            ("Accuracy Rate", _avg_metric("accuracy_rate")),
+            ("Hallucination Rate", _avg_metric("hallucination_rate")),
+            ("Gap Rate (Incomplete)", _avg_metric("gap_rate")),
+            ("N/A Rate", _avg_metric("na_rate")),
+            ("Pass Rate", _avg_metric("pass_rate")),
+            ("Fail Rate", _avg_metric("fail_rate")),
+        ]
+
+        # Metric label/value header
+        ws3.cell(row=8, column=1, value="Metric").font = Font(bold=True)
+        ws3.cell(row=8, column=2, value="Value").font = Font(bold=True)
+        for offset, (metric_name, metric_val) in enumerate(overall_metrics, start=9):
+            ws3.cell(row=offset, column=1, value=metric_name)
+            c = ws3.cell(row=offset, column=2, value=metric_val)
+            c.number_format = "0.0%"
+
+        # Per-model ranking
+        ranking_title_row = 15
+        pm_cell = ws3.cell(row=ranking_title_row, column=1, value="Per-Model Ranking (by Accuracy)")
+        pm_cell.font = Font(bold=True, size=12)
+
+        rank_hdr_row = ranking_title_row + 1
+        for col, hdr in enumerate(["Rank", "Model", "Accuracy", "Hallucination", "Pass", "Fail"], start=1):
+            c = ws3.cell(row=rank_hdr_row, column=col, value=hdr)
+            c.font = Font(bold=True)
+
+        sorted_models = sorted(models, key=lambda m: m["metrics"]["accuracy_rate"], reverse=True)
+        for rank_idx, model in enumerate(sorted_models, start=1):
+            r = rank_hdr_row + rank_idx
+            ws3.cell(row=r, column=1, value=rank_idx)
+            ws3.cell(row=r, column=2, value=model["model_id"])
+            m = model["metrics"]
+            for col_offset, key in enumerate(["accuracy_rate", "hallucination_rate", "pass_rate", "fail_rate"], start=3):
+                c = ws3.cell(row=r, column=col_offset, value=m[key])
+                c.number_format = "0.0%"
+
+        # Flagged issues section
+        flagged_start_row = rank_hdr_row + len(models) + 3
+        fi_cell = ws3.cell(row=flagged_start_row, column=1, value="Flagged Issues")
+        fi_cell.font = Font(bold=True, size=12)
+
+        flagged_rows = []
+        for model in models:
+            for qid, score in model["scores_by_qid"].items():
+                if score == "2":
+                    flagged_rows.append(
+                        f"Model: {model['model_id']}, Field: {qid}, Score: 2 (Hallucinated)"
+                    )
+                elif score == "3":
+                    flagged_rows.append(
+                        f"Model: {model['model_id']}, Field: {qid}, Score: 3 (Incomplete)"
+                    )
+
+        if flagged_rows:
+            for fi_idx, issue_text in enumerate(flagged_rows, start=1):
+                ws3.cell(row=flagged_start_row + fi_idx, column=1, value=issue_text)
+        else:
+            ws3.cell(
+                row=flagged_start_row + 1, column=1,
+                value="No hallucinated or incomplete fields detected."
+            )
+
+        # Column widths for Sheet 3
+        ws3.column_dimensions["A"].width = 35
+        ws3.column_dimensions["B"].width = 30
+
+        # -----------------------------------------------------------------
+        # Save workbook
+        # -----------------------------------------------------------------
+        xlsx_path = batch_dir / "batch_report.xlsx"
+        wb.save(xlsx_path)
+        return xlsx_path
 
     def generate(self, batch_dir: Path) -> None:
         """Orchestrate report generation for a batch directory.
