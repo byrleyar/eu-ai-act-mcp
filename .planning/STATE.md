@@ -1,7 +1,7 @@
 # Project State
 
 **Project:** EU AI Act Compliance MCP Server
-**Status:** Milestone v1.4 -- started
+**Status:** Milestone v1.4 -- in progress
 **Last Updated:** 2026-03-02
 
 ## Project Reference
@@ -14,23 +14,24 @@ See: .planning/PROJECT.md (updated 2026-03-02)
 ## Current Position
 
 **Milestone:** v1.4 (Automated Batch Testing & Compliance Audit)
-**Phase:** 11 (Batch Processing Engine) -- complete
+**Phase:** 12 (Automated Audit Workflow) -- in progress
 **Plan:** 01 -- complete
-**Status:** Phase 12 started (Automated Audit Workflow)
-**Last activity:** 2026-03-02 — Phase 11 complete
+**Status:** Phase 12 Plan 01 complete (AuditService core)
+**Last activity:** 2026-03-02 — Phase 12 Plan 01 complete
 
-Progress: [▓▓▓░░░░░░░] 33% (v1.4)
+Progress: [▓▓▓▓░░░░░░] 40% (v1.4)
 
 ## Performance Metrics
 
-**v1.4 Milestone (started):**
-- Phases: 1 of 3 complete
-- Plans: 1 of 1 complete
-- Requirements: 5 of 14 complete
+**v1.4 Milestone (in progress):**
+- Phases: 1 of 3 complete (Phase 11 done; Phase 12 in progress)
+- Plans: 2 of N complete
+- Requirements: 7 of 14 complete
 
 | Phase | Plan | Duration | Tasks | Files | Tests | Status   |
 |-------|------|----------|-------|-------|-------|----------|
 | 11    | 01   | 10min    | 5     | 7     | 5     | Complete |
+| 12    | 01   | 8min     | 2     | 3     | 11    | Complete |
 
 **v1.3 Milestone (complete):**
 - Phases: 3 of 3 complete
@@ -87,6 +88,12 @@ Progress: [▓▓▓░░░░░░░] 33% (v1.4)
 - **ProcessingContext State Isolation**: Fresh ProcessingContext per model iteration to prevent state leakage (BAT-03).
 - **Batch Artifacts Design**: Save model_card.txt + discovered_links.json + compliance_data_template.json per model; full automated analysis deferred to Phase 12.
 
+**Phase 12:**
+- **ScoreValue as Literal string**: "1i" cannot be represented as an integer, so all 5 score values are strings -- Literal["1", "1i", "2", "3", "4"].
+- **Optional client injection**: AuditService accepts anthropic_client=None for testability without mocking env vars.
+- **JSON fence stripping**: LLMs frequently wrap output in markdown code fences; the parser defensively strips fences before json.loads().
+- **Count-validation**: After parsing, assert len(field_audits) == len(questions) to catch LLM skipping/duplicating entries early.
+
 See .planning/PROJECT.md Key Decisions table for full history.
 
 ### Roadmap Evolution
@@ -95,7 +102,7 @@ See .planning/PROJECT.md Key Decisions table for full history.
 
 ### Active TODOs
 
-- Milestone v1.4 started. Focus on Batch Processing and Automated Audit.
+- Milestone v1.4 in progress. Phase 12 Plan 01 complete. Next: Phase 12 Plan 02 (audit CLI/runner integration).
 
 ### Known Blockers
 
@@ -105,7 +112,9 @@ None.
 
 **Summary:**
 - v1.3 is fully shipped.
-- v1.4 started: Automated Batch Testing & Compliance Audit.
+- v1.4 in progress: Automated Batch Testing & Compliance Audit.
+- Phase 11 complete: batch CLI fetches model cards + saves artifacts per model.
+- Phase 12 Plan 01 complete: AuditService core built (Pydantic models, LLM prompt, audit_model() method, 11 unit tests).
 - Input: CSV/List of models.
 - Output: Compliance docs + Audit reports with performance scores.
 
@@ -114,11 +123,11 @@ None.
 ## Last Session
 
 **Timestamp:** 2026-03-02
-**Stopped at:** Completed Phase 11 (Batch Processing Engine) - Plan 01. All 5 tasks committed atomically. SUMMARY.md created.
-**Next action:** Phase 12 - Automated Audit Workflow.
+**Stopped at:** Completed Phase 12 Plan 01 (AuditService core). 2 tasks committed atomically. SUMMARY.md created.
+**Next action:** Phase 12 Plan 02 -- integrate AuditService into batch workflow or CLI runner.
 
 ---
 
 *State tracking for: EU AI Act Compliance MCP Server*
 *Created: 2026-02-15*
-*Last updated: 2026-03-02 after completing Phase 11 Plan 01*
+*Last updated: 2026-03-02 after completing Phase 12 Plan 01*
