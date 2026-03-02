@@ -1,0 +1,7 @@
+model_id
+meta-llama/Llama-2-7b-hf
+mistralai/Mistral-7B-v0.1
+google/gemma-7b
+invalid/non-existent-model
+facebook/opt-125m
+microsoft/phi-2
