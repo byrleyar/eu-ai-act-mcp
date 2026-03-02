@@ -67,6 +67,11 @@
 **Goal:** Implement the "Skeptical Auditor" logic and 1-4 performance scoring.
 **Depends on:** Phase 11
 **Requirements:** AUD-01, AUD-02, AUD-03, SCR-01, SCR-02, SCR-03
+**Plans:** 2 plans
+Plans:
+- [ ] 12-01-PLAN.md -- AuditService core (Pydantic models, LLM prompt, audit_model method, unit tests)
+- [ ] 12-02-PLAN.md -- Audit processor CLI and end-to-end validation
+
 **Success Criteria:**
 1. Every answer in a compliance doc is audited and assigned a score (1-4).
 2. The auditor correctly identifies at least one hallucination or gap in a test model run.
