@@ -60,28 +60,20 @@
 | 9. Agentic Retrieval Workflow | v1.3 | 1/1 | Complete | 2026-02-16 |
 | 10. Fix Source Report Layout & Attribution | Post-v1.3 | 1/1 | Complete | 2026-02-16 |
 | 11. Batch Processing Engine | v1.4 | 1/1 | Complete | 2026-03-02 |
+| 12. Automated Audit Workflow | v1.4 | 2/2 | Complete | 2026-03-02 |
 
 - [x] Phase 11: Batch Processing Engine (1/1 plans) -- completed 2026-03-02
-- [ ] Phase 12: Automated Audit Workflow
-
-**Goal:** Implement the "Skeptical Auditor" logic and 1-4 performance scoring.
-**Depends on:** Phase 11
-**Requirements:** AUD-01, AUD-02, AUD-03, SCR-01, SCR-02, SCR-03
-**Plans:** 2 plans
-Plans:
-- [ ] 12-01-PLAN.md -- AuditService core (Pydantic models, LLM prompt, audit_model method, unit tests)
-- [ ] 12-02-PLAN.md -- Audit processor CLI and end-to-end validation
-
-**Success Criteria:**
-1. Every answer in a compliance doc is audited and assigned a score (1-4).
-2. The auditor correctly identifies at least one hallucination or gap in a test model run.
-3. Audit results are persisted as JSON metadata.
-
-### Phase 13: Aggregate Results & Reporting
+- [x] Phase 12: Automated Audit Workflow (2/2 plans) -- completed 2026-03-02
+- [ ] Phase 13: Aggregate Results & Reporting
 
 **Goal:** Compile individual audit results into a master summary report (Excel/CSV).
 **Depends on:** Phase 12
 **Requirements:** REP-01, REP-02, REP-03
+**Plans:** 2 plans
+Plans:
+- [ ] 13-01-PLAN.md -- ReportGenerator core (SECTION_MAP, metrics, CSV, unit tests)
+- [ ] 13-02-PLAN.md -- Excel workbook generation (3 sheets) and end-to-end validation
+
 **Success Criteria:**
 1. A single summary table is generated showing accuracy metrics across all models in a batch.
 2. The summary matches the requested hackathon validation format.
