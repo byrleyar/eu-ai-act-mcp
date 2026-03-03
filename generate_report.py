@@ -496,6 +496,301 @@ def make_table4(df_models: pd.DataFrame) -> pd.DataFrame:
 
 
 # ---------------------------------------------------------------------------
+# Tables 5-8 — section-level and question-level analytics
+# ---------------------------------------------------------------------------
+
+
+def make_table5(combined_df: pd.DataFrame) -> pd.DataFrame:
+    """Table 5: Section-Level Unavailability (N/A Rate).
+
+    Columns: Section, Questions in Section, Avg Score-4 Count, Avg N/A%, SD, Min, Max
+
+    For each (section, model_id) pair, counts how many field_audits have score == "4",
+    then aggregates across models per section, sorted by avg_na_pct descending.
+
+    Returns:
+        Formatted DataFrame ready for Markdown and CSV export.
+    """
+    if combined_df.empty:
+        return pd.DataFrame(
+            columns=[
+                "Section", "Questions in Section", "Avg Score-4 Count",
+                "Avg N/A %", "SD", "Min", "Max",
+            ]
+        )
+
+    # Step 1: count score-4 per (section, model_id) pair
+    section_model_df = (
+        combined_df
+        .groupby(["section", "model_id"], observed=True)
+        .apply(lambda x: (x["score"] == "4").sum(), include_groups=False)
+        .reset_index(name="na_count")
+    )
+
+    # Step 2: questions per section from SECTION_MAP
+    questions_per_section: dict[str, int] = {
+        section: len(qids) for section, qids in SECTION_MAP.items()
+    }
+
+    # Step 3: aggregate across models per section
+    grouped = (
+        section_model_df
+        .groupby("section", observed=True)
+        .agg(
+            avg_na_count=("na_count", "mean"),
+            sd_na_count=("na_count", "std"),
+            min_na=("na_count", "min"),
+            max_na=("na_count", "max"),
+        )
+        .reset_index()
+    )
+
+    # Step 4: add questions_in_section
+    grouped["questions_in_section"] = grouped["section"].map(
+        lambda s: questions_per_section.get(s, 0)
+    )
+
+    # Step 5: compute avg_na_pct
+    grouped["avg_na_pct"] = grouped.apply(
+        lambda row: (row["avg_na_count"] / row["questions_in_section"] * 100)
+        if row["questions_in_section"] > 0
+        else float("nan"),
+        axis=1,
+    )
+
+    # Step 6: sort by avg_na_pct descending
+    grouped = grouped.sort_values("avg_na_pct", ascending=False).reset_index(drop=True)
+
+    # Step 7: format output columns
+    output_rows = []
+    for _, row in grouped.iterrows():
+        sd_val = row["sd_na_count"]
+        sd_str = "-" if pd.isna(sd_val) else f"{sd_val:.1f}"
+        output_rows.append(
+            {
+                "Section": row["section"],
+                "Questions in Section": int(row["questions_in_section"]),
+                "Avg Score-4 Count": f"{row['avg_na_count']:.1f}",
+                "Avg N/A %": fmt_pct(row["avg_na_pct"]),
+                "SD": sd_str,
+                "Min": int(row["min_na"]),
+                "Max": int(row["max_na"]),
+            }
+        )
+
+    return pd.DataFrame(
+        output_rows,
+        columns=[
+            "Section", "Questions in Section", "Avg Score-4 Count",
+            "Avg N/A %", "SD", "Min", "Max",
+        ],
+    )
+
+
+def make_table6(
+    combined_df: pd.DataFrame,
+) -> tuple[pd.DataFrame, str]:
+    """Table 6: Section-Level Unavailability by Organization Type.
+
+    Implements the 15pp highlighting rule: cells where abs(cell - section_avg) > 15
+    have a "*" suffix in the formatted string.
+
+    Returns:
+        (formatted_df, footnote_str) where footnote_str is the markdown footnote
+        string to include below the table.
+    """
+    footnote = "* = differs from overall section average by >15 percentage points"
+
+    if combined_df.empty:
+        return pd.DataFrame(columns=["Section"]), footnote
+
+    # Step 1: get org_types (exclude "unknown")
+    all_org_types = sorted(
+        [ot for ot in combined_df["org_type"].unique() if ot != "unknown"]
+    )
+    if not all_org_types:
+        return pd.DataFrame(columns=["Section"]), footnote
+
+    # Step 2: count score-4 per (section, org_type, model_id)
+    section_org_model = (
+        combined_df
+        .groupby(["section", "org_type", "model_id"], observed=True)
+        .apply(lambda x: (x["score"] == "4").sum(), include_groups=False)
+        .reset_index(name="na_count")
+    )
+
+    # Step 3: avg na_pct per (section, org_type) across models
+    questions_per_section: dict[str, int] = {
+        section: len(qids) for section, qids in SECTION_MAP.items()
+    }
+
+    section_org_agg = (
+        section_org_model
+        .groupby(["section", "org_type"], observed=True)
+        .agg(avg_na_count=("na_count", "mean"))
+        .reset_index()
+    )
+    section_org_agg["q_in_section"] = section_org_agg["section"].map(
+        lambda s: questions_per_section.get(s, 0)
+    )
+    section_org_agg["avg_na_pct"] = section_org_agg.apply(
+        lambda row: (row["avg_na_count"] / row["q_in_section"] * 100)
+        if row["q_in_section"] > 0
+        else float("nan"),
+        axis=1,
+    )
+
+    # Step 4: pivot — rows=section, columns=org_type, values=avg_na_pct
+    pivot = section_org_agg.pivot(
+        index="section", columns="org_type", values="avg_na_pct"
+    ).reset_index()
+
+    # Ensure all org_type columns present (fill NaN for missing combos)
+    for ot in all_org_types:
+        if ot not in pivot.columns:
+            pivot[ot] = float("nan")
+
+    # Step 5: compute overall avg N/A% per section (across all org_types)
+    # Use combined_df directly for the overall per-section na_pct
+    section_overall = (
+        combined_df
+        .groupby(["section", "model_id"], observed=True)
+        .apply(lambda x: (x["score"] == "4").sum(), include_groups=False)
+        .reset_index(name="na_count")
+        .groupby("section", observed=True)
+        .agg(avg_na_count=("na_count", "mean"))
+        .reset_index()
+    )
+    section_overall["q_in_section"] = section_overall["section"].map(
+        lambda s: questions_per_section.get(s, 0)
+    )
+    section_overall["overall_avg_pct"] = section_overall.apply(
+        lambda row: (row["avg_na_count"] / row["q_in_section"] * 100)
+        if row["q_in_section"] > 0
+        else float("nan"),
+        axis=1,
+    )
+    overall_dict: dict[str, float] = dict(
+        zip(section_overall["section"], section_overall["overall_avg_pct"])
+    )
+
+    # Step 6: apply 15pp highlighting, build formatted output
+    output_rows = []
+    for _, row in pivot.iterrows():
+        section = row["section"]
+        overall_avg = overall_dict.get(section, float("nan"))
+        out_row: dict = {"Section": section}
+        for ot in all_org_types:
+            cell_val = row.get(ot, float("nan"))
+            if pd.isna(cell_val):
+                out_row[ot] = "-"
+            else:
+                cell_str = fmt_pct(cell_val)
+                if not pd.isna(overall_avg) and abs(cell_val - overall_avg) > 15.0:
+                    cell_str += "*"
+                out_row[ot] = cell_str
+        output_rows.append(out_row)
+
+    formatted_df = pd.DataFrame(output_rows, columns=["Section"] + all_org_types)
+    return formatted_df, footnote
+
+
+def question_problem_table(
+    combined_df: pd.DataFrame,
+    score_val: str,
+    top_n: int = 15,
+) -> tuple[pd.DataFrame, bool]:
+    """Shared helper for Tables 7 and 8.
+
+    Args:
+        combined_df: Combined field-level DataFrame.
+        score_val: Score value to filter on ("2" for hallucinated, "3" for incomplete).
+        top_n: Maximum number of rows to return.
+
+    Returns:
+        (result_df, has_data) where has_data=False when no matching scores exist.
+    """
+    if combined_df.empty:
+        return pd.DataFrame(), False
+
+    n_models = combined_df["model_id"].nunique()
+    flagged = combined_df[combined_df["score"] == score_val]
+
+    if flagged.empty:
+        return pd.DataFrame(), False
+
+    agg = (
+        flagged
+        .groupby(["question_id", "section"], observed=True)
+        .agg(
+            count=("model_id", "count"),
+            models_affected=("model_id", lambda x: ", ".join(sorted(set(x)))),
+        )
+        .reset_index()
+    )
+    agg["rate_pct"] = agg["count"] / n_models * 100
+    agg = agg.sort_values("rate_pct", ascending=False).head(top_n).reset_index(drop=True)
+    agg.insert(0, "rank", range(1, len(agg) + 1))
+
+    return (
+        agg[["rank", "question_id", "section", "count", "rate_pct", "models_affected"]],
+        True,
+    )
+
+
+def make_table7(combined_df: pd.DataFrame) -> tuple[pd.DataFrame, bool]:
+    """Table 7: Most commonly hallucinated questions (score == "2").
+
+    Columns: Rank, Question ID, Section, Hallucination Count, Rate (%), Models Affected
+
+    Returns:
+        (formatted_df, has_data)
+    """
+    df, has_data = question_problem_table(combined_df, score_val="2")
+    if not has_data:
+        return df, False
+
+    df = df.rename(
+        columns={
+            "rank": "Rank",
+            "question_id": "Question ID",
+            "section": "Section",
+            "count": "Hallucination Count",
+            "rate_pct": "Rate (%)",
+            "models_affected": "Models Affected",
+        }
+    )
+    df["Rate (%)"] = df["Rate (%)"].apply(fmt_pct)
+    return df, True
+
+
+def make_table8(combined_df: pd.DataFrame) -> tuple[pd.DataFrame, bool]:
+    """Table 8: Most commonly incomplete questions (score == "3").
+
+    Columns: Rank, Question ID, Section, Incomplete Count, Rate (%), Models Affected
+
+    Returns:
+        (formatted_df, has_data)
+    """
+    df, has_data = question_problem_table(combined_df, score_val="3")
+    if not has_data:
+        return df, False
+
+    df = df.rename(
+        columns={
+            "rank": "Rank",
+            "question_id": "Question ID",
+            "section": "Section",
+            "count": "Incomplete Count",
+            "rate_pct": "Rate (%)",
+            "models_affected": "Models Affected",
+        }
+    )
+    df["Rate (%)"] = df["Rate (%)"].apply(fmt_pct)
+    return df, True
+
+
+# ---------------------------------------------------------------------------
 # CLI entry point
 # ---------------------------------------------------------------------------
 
