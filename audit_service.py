@@ -162,13 +162,17 @@ class AuditService:
 
         # ---- 4. Call Anthropic API ----
         response = self.client.messages.create(
-            model="claude-sonnet-4-20250514",
+            model="claude-opus-4-6",
             max_tokens=16000,
+            thinking={"type": "enabled", "budget_tokens": 10000},
             system=system_prompt,
             messages=[{"role": "user", "content": user_prompt}],
         )
 
-        raw_text = response.content[0].text
+        # With extended thinking enabled, response.content contains a thinking block
+        # followed by a text block. Find the text block by type, not position.
+        text_block = next(b for b in response.content if b.type == "text")
+        raw_text = text_block.text
 
         # ---- 5. Extract JSON (handle markdown code fences) ----
         text = raw_text.strip()
@@ -210,7 +214,7 @@ class AuditService:
         result = AuditResult(
             model_id=ctx.model_id,
             audit_timestamp=audit_timestamp,
-            auditor_model="claude-sonnet-4-20250514",
+            auditor_model="claude-opus-4-6",
             summary=summary,
             field_audits=field_audits,
         )
