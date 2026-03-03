@@ -96,25 +96,64 @@ Each element must be a JSON object with exactly these fields:
 }
 """
 
+COMPLIANCE_SYSTEM_PROMPT = """You are a compliance form assistant filling in an EU AI Act compliance questionnaire.
+
+Read the provided model card carefully and answer each question based ONLY on information present in the model card.
+If information is not available in the model card, respond with "Not available in model card."
+
+## Output Format
+
+Return a JSON object (and ONLY a JSON object — no markdown fences, no preamble, no trailing text) where each key is a question_id and each value is the answer string:
+
+{"question_id": "answer", ...}
+"""
+
 # ---------------------------------------------------------------------------
-# Prompt builder
+# Prompt builders
 # ---------------------------------------------------------------------------
 
 
-def build_audit_user_prompt(model_card_text: str, questions: list) -> str:
+def build_audit_user_prompt(model_card_text: str, questions: list, compliance_data: dict = None) -> str:
     """Constructs the user message for the audit LLM call."""
-    questions_json = json.dumps(questions, indent=2)
+    if compliance_data:
+        # Embed pre-filled answers alongside each question so Opus scores existing answers
+        enriched = [
+            {**q, "pre_filled_answer": compliance_data.get(q["id"], "Not provided")}
+            for q in questions
+        ]
+        questions_json = json.dumps(enriched, indent=2)
+        audit_instruction = "Each question includes a pre_filled_answer. Score that answer against the model card — do NOT re-derive answers."
+    else:
+        questions_json = json.dumps(questions, indent=2)
+        audit_instruction = "The compliance form was filled in using ONLY the model card above. Audit every answer."
     return f"""## MODEL CARD
 
 {model_card_text}
 
 ## QUESTIONS TO ANSWER AND AUDIT
 
-The compliance form was filled in using ONLY the model card above. Audit every answer.
+{audit_instruction}
 
 {questions_json}
 
 Audit each question_id listed above. Return a JSON array with one object per question_id, following the format in the system prompt exactly.
+"""
+
+
+def build_compliance_user_prompt(model_card_text: str, questions: list) -> str:
+    """Constructs the user message for the Sonnet compliance form-filling call."""
+    question_items = "\n".join(
+        f'- {q["id"]}: {q["question"]}' for q in questions
+    )
+    return f"""## MODEL CARD
+
+{model_card_text}
+
+## QUESTIONS
+
+Answer each question using ONLY the model card above. Return a JSON object mapping question_id to answer string.
+
+{question_items}
 """
 
 
@@ -132,18 +171,59 @@ class AuditService:
         else:
             self.client = anthropic.Anthropic()
 
+    def generate_compliance_data(self, ctx: ProcessingContext) -> dict:
+        """
+        Call Sonnet (no extended thinking) to fill in compliance answers from the model card.
+        Saves compliance_data.json to ctx.output_path and returns the {question_id: answer} dict.
+        """
+        model_card_path = Path(ctx.output_path) / "model_card.txt"
+        model_card_text = model_card_path.read_text(encoding="utf-8")
+
+        questions_path = Path(__file__).parent / "questions.json"
+        with open(questions_path, "r", encoding="utf-8") as f:
+            questions = json.load(f)
+
+        user_prompt = build_compliance_user_prompt(model_card_text, questions)
+
+        response = self.client.messages.create(
+            model="claude-sonnet-4-6",
+            max_tokens=8000,
+            system=COMPLIANCE_SYSTEM_PROMPT,
+            messages=[{"role": "user", "content": user_prompt}],
+        )
+
+        raw_text = response.content[0].text.strip()
+        # Handle optional markdown fences
+        if raw_text.startswith("```"):
+            first_newline = raw_text.find("\n")
+            if first_newline != -1:
+                raw_text = raw_text[first_newline + 1:]
+            if raw_text.rstrip().endswith("```"):
+                raw_text = raw_text.rstrip()[:-3].rstrip()
+
+        compliance_data = json.loads(raw_text)
+
+        output_path = Path(ctx.output_path)
+        output_path.mkdir(parents=True, exist_ok=True)
+        with open(output_path / "compliance_data.json", "w", encoding="utf-8") as f:
+            json.dump(compliance_data, f, indent=2)
+
+        return compliance_data
+
     def audit_model(self, ctx: ProcessingContext) -> AuditResult:
         """
-        Audit compliance fields for a model by:
-        1. Reading model_card.txt from ctx.output_path
-        2. Loading questions.json
-        3. Calling Anthropic API with the Skeptical Auditor prompt
-        4. Validating and parsing the JSON response
-        5. Persisting audit_results.json and compliance_data.json
-        6. Returning AuditResult
+        Audit compliance fields for a model:
+        1. Call generate_compliance_data() (Sonnet) if compliance_data.json absent
+        2. Load compliance_data.json
+        3. Build prompts with pre-filled answers embedded
+        4. Call Opus + extended thinking to score each answer
+        5. Persist audit_results.json
+        6. Return AuditResult
         """
+        output_path = Path(ctx.output_path)
+
         # ---- 1. Read model card ----
-        model_card_path = Path(ctx.output_path) / "model_card.txt"
+        model_card_path = output_path / "model_card.txt"
         if not model_card_path.exists():
             raise FileNotFoundError(
                 f"model_card.txt not found at {model_card_path}. "
@@ -156,11 +236,19 @@ class AuditService:
         with open(questions_path, "r", encoding="utf-8") as f:
             questions = json.load(f)
 
-        # ---- 3. Build prompts ----
-        system_prompt = AUDIT_SYSTEM_PROMPT
-        user_prompt = build_audit_user_prompt(model_card_text, questions)
+        # ---- 3. Generate or load compliance_data ----
+        compliance_data_path = output_path / "compliance_data.json"
+        if not compliance_data_path.exists():
+            compliance_data = self.generate_compliance_data(ctx)
+        else:
+            with open(compliance_data_path, "r", encoding="utf-8") as f:
+                compliance_data = json.load(f)
 
-        # ---- 4. Call Anthropic API ----
+        # ---- 4. Build prompts ----
+        system_prompt = AUDIT_SYSTEM_PROMPT
+        user_prompt = build_audit_user_prompt(model_card_text, questions, compliance_data)
+
+        # ---- 5. Call Anthropic API (Opus + extended thinking) ----
         response = self.client.messages.create(
             model="claude-opus-4-6",
             max_tokens=16000,
@@ -169,28 +257,25 @@ class AuditService:
             messages=[{"role": "user", "content": user_prompt}],
         )
 
-        # With extended thinking enabled, response.content contains a thinking block
-        # followed by a text block. Find the text block by type, not position.
+        # With extended thinking enabled, find the text block by type.
         text_block = next(b for b in response.content if b.type == "text")
         raw_text = text_block.text
 
-        # ---- 5. Extract JSON (handle markdown code fences) ----
+        # ---- 6. Extract JSON (handle markdown code fences) ----
         text = raw_text.strip()
         if text.startswith("```"):
-            # Strip opening fence (```json or ```)
             first_newline = text.find("\n")
             if first_newline != -1:
                 text = text[first_newline + 1:]
-            # Strip closing fence
             if text.rstrip().endswith("```"):
                 text = text.rstrip()[:-3].rstrip()
 
         parsed = json.loads(text)
 
-        # ---- 6. Validate each entry as FieldAudit ----
+        # ---- 7. Validate each entry as FieldAudit ----
         field_audits: List[FieldAudit] = [FieldAudit(**entry) for entry in parsed]
 
-        # ---- 7. Validate count matches questions ----
+        # ---- 8. Validate count matches questions ----
         if len(field_audits) != len(questions):
             raise ValueError(
                 f"Audit response has {len(field_audits)} entries but "
@@ -198,7 +283,7 @@ class AuditService:
                 "The LLM may have skipped or duplicated entries."
             )
 
-        # ---- 8. Build AuditSummary ----
+        # ---- 9. Build AuditSummary ----
         score_counts = collections.Counter(fa.score for fa in field_audits)
         summary = AuditSummary(
             total_fields=len(field_audits),
@@ -209,7 +294,7 @@ class AuditService:
             score_4_count=score_counts.get("4", 0),
         )
 
-        # ---- 9. Build AuditResult ----
+        # ---- 10. Build AuditResult ----
         audit_timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
         result = AuditResult(
             model_id=ctx.model_id,
@@ -219,15 +304,8 @@ class AuditService:
             field_audits=field_audits,
         )
 
-        # ---- 10. Persist compliance_data.json ----
-        output_path = Path(ctx.output_path)
-        output_path.mkdir(parents=True, exist_ok=True)
-
-        compliance_data = {fa.question_id: fa.answer for fa in field_audits}
-        with open(output_path / "compliance_data.json", "w", encoding="utf-8") as f:
-            json.dump(compliance_data, f, indent=2)
-
         # ---- 11. Persist audit_results.json ----
+        output_path.mkdir(parents=True, exist_ok=True)
         with open(output_path / "audit_results.json", "w", encoding="utf-8") as f:
             json.dump(result.model_dump(), f, indent=2)
 
