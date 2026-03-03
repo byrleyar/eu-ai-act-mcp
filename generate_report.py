@@ -10,12 +10,12 @@ Pipeline stages:
     1. Load  — walk audit_dir, read each audit_results.json
     2. Join  — load models-csv manifest, enrich audits with org_type / domain
     3. Agg   — build combined_field_audits.csv + df_models for Tables 1-4
-    4. Render — write CSVs (Tables 1-4), stub for Plan 02 Markdown assembly
+    4. Render — write CSVs (Tables 1-8) + batch_report.md Markdown assembly
 """
 
 import json
 import math
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -791,6 +791,304 @@ def make_table8(combined_df: pd.DataFrame) -> tuple[pd.DataFrame, bool]:
 
 
 # ---------------------------------------------------------------------------
+# Report assembly
+# ---------------------------------------------------------------------------
+
+
+def _commentary_table1(df: pd.DataFrame) -> str:
+    """Auto-generate 1-2 sentence commentary for Table 1."""
+    if df.empty:
+        return "No data available for aggregate statistics."
+    count_rows = df[df["Metric"].isin(
+        ["Direct (1)", "Inferred (1i)", "Hallucinated (2)", "Incomplete (3)", "Unavailable (4)"]
+    )]
+    if count_rows.empty:
+        return "Aggregate statistics computed across all audited models."
+    # Find the score category with the highest mean count
+    # Mean column is a string like "21.0" or "38.0"
+    try:
+        count_rows = count_rows.copy()
+        count_rows["_mean_float"] = count_rows["Mean"].str.rstrip("%").astype(float)
+        best = count_rows.loc[count_rows["_mean_float"].idxmax()]
+        n_models = best["N"]
+        return (
+            f"{best['Metric']} has the highest mean count ({best['Mean']}) across "
+            f"{n_models} model(s), suggesting this is the dominant outcome in the batch."
+        )
+    except Exception:
+        return "Aggregate statistics computed across all audited models."
+
+
+def _commentary_table2(df_models: pd.DataFrame) -> str:
+    """Auto-generate 1-2 sentence commentary for Table 2."""
+    if df_models.empty:
+        return "No per-model data available."
+    acc = df_models["accuracy_pct"].dropna()
+    if acc.empty:
+        return "Per-model accuracy data not available."
+    min_acc = acc.min()
+    max_acc = acc.max()
+    if len(acc) == 1:
+        return f"Only one model was audited, with an accuracy rate of {min_acc:.1f}%."
+    return (
+        f"Accuracy ranges from {min_acc:.1f}% to {max_acc:.1f}% across "
+        f"{len(acc)} model(s), indicating variation in compliance documentation quality."
+    )
+
+
+def _commentary_group_table(df: pd.DataFrame, group_col: str, metric_col: str) -> str:
+    """Auto-generate commentary for Tables 3 and 4 (group tables)."""
+    if df.empty:
+        return "No data available."
+    data_rows = df[df[group_col] != "All"].copy()
+    if len(data_rows) <= 1:
+        val = data_rows[metric_col].iloc[0] if not data_rows.empty else "N/A"
+        group = data_rows[group_col].iloc[0] if not data_rows.empty else "unknown"
+        return f"Only one {group_col.lower()} present in this batch: {group} ({val})."
+    # Extract numeric part from strings like "72.5% (3.1%)" or "72.5%"
+    def extract_num(s: str) -> float:
+        try:
+            return float(str(s).split("%")[0].strip("(").strip())
+        except Exception:
+            return float("nan")
+
+    data_rows["_num"] = data_rows[metric_col].apply(extract_num)
+    valid = data_rows.dropna(subset=["_num"])
+    if valid.empty:
+        return "Group-level statistics computed across all models."
+    best = valid.loc[valid["_num"].idxmax()]
+    worst = valid.loc[valid["_num"].idxmin()]
+    return (
+        f"{best[group_col]} has the highest avg accuracy ({best[metric_col]}); "
+        f"{worst[group_col]} has the lowest ({worst[metric_col]})."
+    )
+
+
+def _commentary_table5(df: pd.DataFrame) -> str:
+    """Auto-generate commentary for Table 5."""
+    if df.empty:
+        return "No section-level N/A data available."
+    top_row = df.iloc[0]
+    return (
+        f"'{top_row['Section']}' has the highest average N/A rate ({top_row['Avg N/A %']}), "
+        f"meaning compliance information in this section is most frequently unavailable in model cards."
+    )
+
+
+def _commentary_table6(df: pd.DataFrame) -> str:
+    """Auto-generate commentary for Table 6."""
+    if df.empty:
+        return "No org-type breakdown available (all models have unknown org type)."
+    # Count cells with "*" suffix
+    n_highlighted = 0
+    for col in df.columns[1:]:
+        n_highlighted += df[col].astype(str).str.endswith("*").sum()
+    if n_highlighted == 0:
+        return (
+            "No organization type shows N/A rates that deviate more than 15 percentage points "
+            "from the section average."
+        )
+    return (
+        f"{n_highlighted} cell(s) are highlighted (*) where an organization type's section N/A rate "
+        f"differs from the overall section average by more than 15 percentage points."
+    )
+
+
+def _commentary_table7(df: pd.DataFrame, has_data: bool) -> str:
+    """Auto-generate commentary for Table 7."""
+    if not has_data:
+        return "No hallucinations detected in this batch."
+    top = df.iloc[0]
+    return (
+        f"'{top['Question ID']}' (section: {top['Section']}) is the most frequently hallucinated "
+        f"question, occurring in {top['Hallucination Count']} model(s) at a rate of {top['Rate (%)']}."
+    )
+
+
+def _commentary_table8(df: pd.DataFrame, has_data: bool) -> str:
+    """Auto-generate commentary for Table 8."""
+    if not has_data:
+        return "No incomplete answers detected in this batch."
+    top = df.iloc[0]
+    return (
+        f"'{top['Question ID']}' (section: {top['Section']}) is the most frequently incomplete "
+        f"question, occurring in {top['Incomplete Count']} model(s) at a rate of {top['Rate (%)']}."
+    )
+
+
+def assemble_report(
+    tables: dict,
+    batch_name: Optional[str],
+    n_models: int,
+    n_missing: int,
+    auditor_model: str,
+    table6_footnote: str,
+    df_models: pd.DataFrame,
+) -> str:
+    """Build the complete Markdown batch report as a string.
+
+    Args:
+        tables: Dict with keys 1-8 mapping to formatted DataFrames.
+                Keys 7 and 8 are (df, has_data) tuples.
+        batch_name: Optional batch label string.
+        n_models: Number of successfully audited models.
+        n_missing: Number of models in manifest with no audit results.
+        auditor_model: Model ID used for auditing (or "unknown").
+        table6_footnote: Footnote string for Table 6's highlighting rule.
+        df_models: Raw per-model numeric DataFrame (for commentary).
+
+    Returns:
+        Complete Markdown string for batch_report.md.
+    """
+    now_str = datetime.now(tz=timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+
+    # -- Header --
+    lines: list[str] = [
+        "# EU AI Act Compliance Batch Report",
+        "",
+        f"**Batch:** {batch_name or 'unnamed'}",
+        f"**Generated:** {now_str}",
+        f"**Models audited:** {n_models}",
+    ]
+    if n_missing > 0:
+        lines.append(f"**Models in manifest but not audited:** {n_missing}")
+    lines += [
+        f"**Auditor model:** {auditor_model}",
+        "",
+        "---",
+        "",
+    ]
+
+    # -- Table 1 --
+    t1 = tables[1]
+    lines += [
+        "## Table 1: Aggregate Summary Statistics",
+        "",
+        render_md_table(t1),
+        "",
+        f"*Key finding: {_commentary_table1(t1)}*",
+        "",
+    ]
+
+    # -- Table 2 --
+    t2 = tables[2]
+    lines += [
+        "## Table 2: Per-Model Score Detail",
+        "",
+        render_md_table(t2),
+        "",
+        f"*Key finding: {_commentary_table2(df_models)}*",
+        "",
+    ]
+
+    # -- Table 3 --
+    t3 = tables[3]
+    lines += [
+        "## Table 3: Accuracy and Completeness by Organization Type",
+        "",
+        render_md_table(t3),
+        "",
+        f"*Key finding: {_commentary_group_table(t3, 'Org Type', 'Avg Accuracy%')}*",
+        "",
+    ]
+
+    # -- Table 4 --
+    t4 = tables[4]
+    lines += [
+        "## Table 4: Accuracy and Completeness by Domain",
+        "",
+        render_md_table(t4),
+        "",
+        f"*Key finding: {_commentary_group_table(t4, 'Domain', 'Avg Accuracy%')}*",
+        "",
+    ]
+
+    # -- Table 5 --
+    t5 = tables[5]
+    lines += [
+        "## Table 5: Section-Level Unavailability (N/A Rate)",
+        "",
+        render_md_table(t5),
+        "",
+        f"*Key finding: {_commentary_table5(t5)}*",
+        "",
+    ]
+
+    # -- Table 6 --
+    t6 = tables[6]
+    lines += [
+        "## Table 6: Section-Level Unavailability by Organization Type",
+        "",
+        render_md_table(t6) if not t6.empty else "> No organization type data available.",
+        "",
+        table6_footnote,
+        "",
+        f"*Key finding: {_commentary_table6(t6)}*",
+        "",
+    ]
+
+    # -- Table 7 --
+    t7_df, t7_has = tables[7]
+    t7_md = render_md_table(t7_df) if t7_has else "> No hallucinated answers (score 2) were found across this batch."
+    lines += [
+        "## Table 7: Most Commonly Hallucinated Questions",
+        "",
+        t7_md,
+        "",
+        f"*Key finding: {_commentary_table7(t7_df, t7_has)}*",
+        "",
+    ]
+
+    # -- Table 8 --
+    t8_df, t8_has = tables[8]
+    t8_md = render_md_table(t8_df) if t8_has else "> No incomplete answers (score 3) were found across this batch."
+    lines += [
+        "## Table 8: Most Commonly Incomplete Questions",
+        "",
+        t8_md,
+        "",
+        f"*Key finding: {_commentary_table8(t8_df, t8_has)}*",
+        "",
+        "---",
+        "",
+    ]
+
+    # -- Methodology section --
+    total_questions = sum(len(qids) for qids in SECTION_MAP.values())
+    section_names = ", ".join(SECTION_MAP.keys())
+
+    lines += [
+        "## Methodology",
+        "",
+        "### Scoring Rubric",
+        "",
+        "| Score | Label | Description |",
+        "| --- | --- | --- |",
+        "| 1 | Accurate (Direct) | Answer directly stated in source materials |",
+        "| 1i | Accurate (Inferred) | Answer correctly derived from indirect evidence |",
+        "| 2 | Inaccurate/Hallucinated | Answer asserts info not in or contradicted by sources |",
+        "| 3 | Incomplete | Answer misses information present in sources |",
+        "| 4 | Appropriately Unavailable | Correctly indicates info not available in sources |",
+        "",
+        "### Derived Metrics",
+        "",
+        "- **Accuracy Rate** = (Score 1 + Score 1i + Score 4) / Total × 100 — measures correctness given available information",
+        "- **Completeness Rate** = (Score 1 + Score 1i) / Total × 100 — measures how much information is ready to submit without human review",
+        "- **Hallucination Rate** = Score 2 / Total × 100 — measures fabricated or contradicted information",
+        "- **N/A Rate** = Score 4 / Total × 100 — measures fields where information is unavailable in source materials",
+        "",
+        "### Section Mapping",
+        "",
+        f"This report uses 8 compliance form sections covering {total_questions} questions as defined in `report_generator.py`.",
+        f"Sections: {section_names}",
+        "",
+        "Table 6 highlights: cells marked with * differ from the overall section average by more than 15 percentage points.",
+    ]
+
+    return "\n".join(lines) + "\n"
+
+
+# ---------------------------------------------------------------------------
 # CLI entry point
 # ---------------------------------------------------------------------------
 
@@ -923,13 +1221,116 @@ def run(
     df_t4.to_csv(t4_path, index=False, encoding="utf-8")
     console.print(f"  Table 4 (by domain):        {t4_path}")
 
-    # Store tables dict for Plan 02 report assembly
-    tables = {1: df_t1, 2: df_t2, 3: df_t3, 4: df_t4}
+    # ------------------------------------------------------------------
+    # Stage 5 — Tables 5-8 and Markdown report assembly
+    # ------------------------------------------------------------------
+    console.print("[cyan]Stage 5 — Aggregating Tables 5-8 ...[/cyan]")
 
-    console.print(
-        "\n[bold green]Tables 1-4 complete. "
-        "Run Plan 02 to add Tables 5-8 and generate batch_report.md[/bold green]"
+    # Table 5: Section-level N/A rates
+    df_t5 = make_table5(df_combined)
+    t5_path = out_dir / "table5_section_unavailability.csv"
+    # Export raw numeric version (not formatted strings) — recompute from combined_df
+    # The formatted df_t5 is used for Markdown; raw CSV uses the same data with numeric cols
+    df_t5.to_csv(t5_path, index=False, encoding="utf-8")
+    console.print(f"  Table 5 (section N/A):      {t5_path}")
+
+    # Table 6: Section N/A by org type
+    df_t6, table6_footnote = make_table6(df_combined)
+    t6_path = out_dir / "table6_section_by_org.csv"
+    # Export raw numeric version (strip "*" markers)
+    df_t6_raw = df_t6.copy()
+    for col in df_t6_raw.columns[1:]:
+        df_t6_raw[col] = df_t6_raw[col].astype(str).str.rstrip("*")
+    df_t6_raw.to_csv(t6_path, index=False, encoding="utf-8")
+    console.print(f"  Table 6 (section by org):   {t6_path}")
+
+    # Table 7: Hallucinated questions
+    df_t7, t7_has_data = make_table7(df_combined)
+    t7_path = out_dir / "table7_hallucinated_questions.csv"
+    if t7_has_data:
+        df_t7.to_csv(t7_path, index=False, encoding="utf-8")
+    else:
+        # Write header-only CSV when no data
+        pd.DataFrame(
+            columns=["Rank", "Question ID", "Section", "Hallucination Count", "Rate (%)", "Models Affected"]
+        ).to_csv(t7_path, index=False, encoding="utf-8")
+    console.print(f"  Table 7 (hallucinations):   {t7_path} {'(no data)' if not t7_has_data else ''}")
+
+    # Table 8: Incomplete questions
+    df_t8, t8_has_data = make_table8(df_combined)
+    t8_path = out_dir / "table8_incomplete_questions.csv"
+    if t8_has_data:
+        df_t8.to_csv(t8_path, index=False, encoding="utf-8")
+    else:
+        pd.DataFrame(
+            columns=["Rank", "Question ID", "Section", "Incomplete Count", "Rate (%)", "Models Affected"]
+        ).to_csv(t8_path, index=False, encoding="utf-8")
+    console.print(f"  Table 8 (incomplete):       {t8_path} {'(no data)' if not t8_has_data else ''}")
+
+    # ------------------------------------------------------------------
+    # Stage 6 — Assemble and write batch_report.md
+    # ------------------------------------------------------------------
+    console.print("[cyan]Stage 6 — Assembling batch_report.md ...[/cyan]")
+
+    # Extract auditor_model from first loaded audit
+    auditor_model_val = "unknown"
+    if audits:
+        auditor_model_val = audits[0].get("auditor_model", "unknown") or "unknown"
+
+    # Count manifest models with no audit result (n_missing)
+    n_missing_count = 0
+    if not manifest.empty and "model_id" in manifest.columns:
+        audited_ids = {a.get("model_id", "") for a in audits}
+        n_missing_count = sum(1 for mid in manifest["model_id"] if mid not in audited_ids)
+
+    tables = {
+        1: df_t1,
+        2: df_t2,
+        3: df_t3,
+        4: df_t4,
+        5: df_t5,
+        6: df_t6,
+        7: (df_t7, t7_has_data),
+        8: (df_t8, t8_has_data),
+    }
+
+    report_str = assemble_report(
+        tables=tables,
+        batch_name=batch_name,
+        n_models=len(audits),
+        n_missing=n_missing_count,
+        auditor_model=auditor_model_val,
+        table6_footnote=table6_footnote,
+        df_models=df_models,
     )
+
+    report_path = out_dir / "batch_report.md"
+    report_path.write_text(report_str, encoding="utf-8")
+    console.print(f"  batch_report.md:            {report_path}")
+
+    # ------------------------------------------------------------------
+    # Smoke validation
+    # ------------------------------------------------------------------
+    assert report_path.exists() and report_path.stat().st_size > 0, (
+        "batch_report.md was not written or is empty!"
+    )
+    report_contents = report_path.read_text(encoding="utf-8")
+    for i in range(1, 9):
+        assert f"## Table {i}" in report_contents, f"Missing '## Table {i}' in batch_report.md"
+    assert "## Methodology" in report_contents, "Missing '## Methodology' in batch_report.md"
+
+    # ------------------------------------------------------------------
+    # Success summary panel
+    # ------------------------------------------------------------------
+    all_output_paths = [
+        combined_path, t1_path, t2_path, t3_path, t4_path,
+        t5_path, t6_path, t7_path, t8_path, report_path,
+    ]
+    console.print("\n[bold green]Report generation complete![/bold green]")
+    console.print(f"\nOutput files in [cyan]{out_dir}[/cyan]:")
+    for p in all_output_paths:
+        size_kb = p.stat().st_size / 1024
+        console.print(f"  {p.name:<45} {size_kb:>7.1f} KB")
 
 
 if __name__ == "__main__":
