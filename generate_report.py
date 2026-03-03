@@ -108,7 +108,7 @@ def load_manifest(models_csv: Path) -> pd.DataFrame:
     # Strip column names
     df.columns = df.columns.str.strip()
     # Strip all string column values
-    for col in df.select_dtypes(include="object").columns:
+    for col in df.select_dtypes(include=["object", "string"]).columns:
         df[col] = df[col].str.strip()
     return df
 
